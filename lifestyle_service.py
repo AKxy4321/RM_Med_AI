@@ -88,7 +88,6 @@ def get_hospitals_overpass(lat, lng, radius_km=10):
                 'lat': hospital_lat,
                 'lng': hospital_lng,
                 'distance': round(distance, 2)
-                'distance': round(distance, 2)
             })
         hospitals.sort(key=lambda x: x['distance'])
         return hospitals[:15]
