@@ -232,15 +232,6 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
         />
       </div>
 
-    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-      <p className="font-semibold text-blue-700">
-        {result.recommendation?.action ?? 'No recommendation available'}
-      </p>
-      <p className="text-sm text-gray-600">
-        Urgency: {result.recommendation?.urgency ?? 'N/A'}
-      </p>
-    </div>
-
     {/* Gemini summary */}
     {typeof result.ai_summary === 'string' && result.ai_summary.trim() !== '' && (
       <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
