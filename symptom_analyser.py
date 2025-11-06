@@ -92,11 +92,13 @@ class SymptomAnalyzer:
             'easy bruising': 4, 'bleeding gums': 5,
             'nosebleed': 4, 'persistent bleeding': 8,
             'petechiae': 7, 'lymph node swelling': 4,
+            'bleeding': 7, 'severe bleeding': 9, 'internal bleeding': 10,
 
             # Psychiatric
             'anxiety': 3, 'panic attack': 6,
             'hallucinations': 8, 'paranoia': 7, 'suicidal thoughts': 10
         }
+
 
     def feed_to_gemini(self, symptom_result: dict, human_input: str) -> str:
         """

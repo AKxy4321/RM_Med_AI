@@ -4,12 +4,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.units import inch
+from flask import Flask, jsonify, request, send_file
 import math, requests, os, json, re
-from datetime import datetime
 from flask_cors import CORS
 from dotenv import load_dotenv
-from typing import List, Dict, Tuple
-from symptom_analyser import SymptomAnalyzer
 import google.generativeai as genai
 
 
@@ -20,22 +18,9 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# ✅ Configure Gemini
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    print("✅ Gemini AI configured successfully")
-else:
-    print("⚠️ GEMINI_API_KEY not found in environment variables")
-
-analyzer = SymptomAnalyzer()
-
-
 app = Flask(__name__)
 CORS(app)
 
-# -------------------------------------------------------------------
-# ✅ 2. Gemini AI Configuration
-# -------------------------------------------------------------------
 try:
     import google.generativeai as genai
     if GEMINI_API_KEY:
@@ -48,191 +33,6 @@ except Exception as e:
     genai = None
 
 
-# ---------------------------------------------------------------------
-# 🧩 SYMPTOM ANALYZER CLASS + ROUTE
-# ---------------------------------------------------------------------
-class SymptomAnalyzer:
-    def __init__(self):
-        self.symptom_severity = {
-            'fever': 4, 'high fever': 7, 'chills': 4, 'sweating': 3,
-            'cough': 3, 'bloody cough': 8, 'shortness of breath': 7,
-            'chest pain': 9, 'dizziness': 5, 'confusion': 7,
-            'nausea': 3, 'vomiting': 5, 'diarrhea': 4, 'rash': 3,
-            'hives': 6, 'swelling': 6, 'fatigue': 2, 'body aches': 3,
-            'severe headache': 9, 'abdominal pain': 6, 'loss of consciousness': 10
-        }
-
-        self.conditions = {
-            "common_cold": {
-                "symptoms": ["cough", "sore throat", "runny nose", "sneezing", "mild fever"],
-                "care_level": "self-care",
-                "advice": "Rest, fluids, OTC medication."
-            },
-            "pneumonia": {
-                "symptoms": ["cough", "fever", "shortness of breath", "chest pain"],
-                "care_level": "medical",
-                "advice": "Consult doctor, may need antibiotics."
-            },
-            "heart_attack": {
-                "symptoms": ["chest pain", "shortness of breath", "cold sweat", "nausea"],
-                "care_level": "emergency",
-                "advice": "Call emergency services immediately."
-            },
-            "gastroenteritis": {
-                "symptoms": ["vomiting", "diarrhea", "abdominal pain"],
-                "care_level": "self-care/medical if severe",
-                "advice": "Hydrate, rest, oral rehydration solution."
-            }
-        }
-
-    def preprocess_input(self, text: str) -> List[str]:
-        text = text.lower()
-        return [s for s in self.symptom_severity if re.search(rf"\b{s}\b", text)]
-
-    def calculate_severity_score(self, symptoms: List[str], age: int = None) -> Tuple[float, str]:
-        if not symptoms:
-            return 0, "unknown"
-        scores = [self.symptom_severity[s] for s in symptoms]
-        avg = sum(scores) / len(scores)
-        if len(symptoms) >= 4:
-            avg += 1
-        if age and (age > 65 or age < 5):
-            avg += 0.5
-        if avg >= 8:
-            risk = "high"
-        elif avg >= 5:
-            risk = "moderate"
-        else:
-            risk = "low"
-        return round(avg, 1), risk
-
-    def match_condition(self, symptoms: List[str]) -> List[Dict]:
-        matches = []
-        for name, data in self.conditions.items():
-            overlap = len(set(symptoms) & set(data["symptoms"]))
-            if overlap / len(data["symptoms"]) > 0.3:
-                matches.append({
-                    "condition": name.replace("_", " ").title(),
-                    "match_score": round(overlap / len(data["symptoms"]) * 100, 1),
-                    "care_level": data["care_level"],
-                    "advice": data["advice"]
-                })
-        return sorted(matches, key=lambda x: x["match_score"], reverse=True)
-
-    def get_recommendation(self, risk: str):
-        recs = {
-            "high": {"action": "⚠️ Seek urgent medical care", "urgency": "URGENT"},
-            "moderate": {"action": "📅 Schedule doctor appointment soon", "urgency": "SOON"},
-            "low": {"action": "🏠 Self-care and monitor", "urgency": "NON-URGENT"}
-        }
-        return recs.get(risk, recs["moderate"])
-
-    def analyze(self, symptoms_input: str, duration_days: int = 0, age: int = None) -> Dict:
-        symptoms = self.preprocess_input(symptoms_input)
-        if not symptoms:
-            return {"error": "No recognizable symptoms detected. Try being more specific."}
-
-        score, risk = self.calculate_severity_score(symptoms, age)
-        possible = self.match_condition(symptoms)
-        rec = self.get_recommendation(risk)
-
-        result = {
-            "timestamp": datetime.now().isoformat(),
-            "detected_symptoms": symptoms,
-            "severity_score": score,
-            "risk_level": risk.upper(),
-            "risk_score_section": f"Risk Level: {risk.upper()} | Severity Score: {score}/10",
-            "recommendation": rec,
-            "possible_conditions": possible[:3],
-            "disclaimer": "⚕️ This is not a medical diagnosis. Always consult professionals."
-        }
-
-        if risk in ["low", "moderate"]:
-            result["lifestyle_tips"] = [
-                "💧 Stay hydrated and rest",
-                "🍎 Eat light and nutritious food",
-                "🧘 Manage stress, sleep well",
-                "🚶 Engage in mild physical activity"
-            ]
-        return result
-
-
-# -------------------------------------------------------------------
-# 🧠 SYMPTOM ANALYSIS ROUTE
-# -------------------------------------------------------------------
-@app.route('/api/symptom-analysis', methods=['POST'])
-def analyze_symptoms():
-    try:
-        data = request.get_json()
-        if not data or 'symptoms_input' not in data:
-            return jsonify({'error': 'Invalid input. Missing "symptoms_input".'}), 400
-
-        symptoms_input = data.get('symptoms_input', '')
-        duration_days = int(data.get('duration_days', 0))
-        age = int(data.get('age', 1)) if data.get('age') else None
-
-        # Run analyzer
-        result = analyzer.analyze(symptoms_input)
-        result.setdefault("severity_score", 0)
-        result.setdefault("risk_level", "UNKNOWN")
-
-        # === Gemini AI prompt ===
-        prompt = f"""
-        You are a medically trained AI assistant with advanced reasoning.
-        Read the JSON symptom analysis and provide a short, plain-English summary that sounds human.
-
-        CONTEXT:
-        - Patient age: {age if age is not None else "Not provided"}
-        - Duration: {duration_days} days
-        Symptoms: {symptoms_input}
-        JSON Data: {json.dumps(result, indent=2)}
-
-        RULES:
-        1. No bullet points or markdown.
-        2. Keep it under 180 words.
-        3. End with:
-           Final severity score: [X/10]
-           Final risk assessment: [LOW / MODERATE / HIGH]
-           This summary is informational and not a substitute for professional medical evaluation.
-        """
-
-        ai_summary = None
-        try:
-            model = genai.GenerativeModel("gemini-2.5-flash-lite")
-            gemini_response = model.generate_content(prompt)
-            ai_summary = gemini_response.text.strip() if hasattr(gemini_response, "text") else None
-        except Exception as e:
-            ai_summary = f"(Gemini unavailable: {e})"
-
-        result["ai_summary"] = ai_summary or "(No AI summary returned.)"
-
-        # Parse severity and risk if AI updated them
-        updated_risk, updated_score = None, None
-        if ai_summary:
-            score_match = re.search(r"final severity score:\s*([0-9]+(?:\.[0-9]+)?)/?10", ai_summary.lower())
-            if score_match:
-                updated_score = float(score_match.group(1))
-                updated_score = min(max(updated_score, 0), 10)
-
-            risk_match = re.search(r"final risk assessment:\s*(low|moderate|medium|high)", ai_summary.lower())
-            if risk_match:
-                word = risk_match.group(1)
-                updated_risk = {"low": "LOW", "moderate": "MODERATE", "medium": "MODERATE", "high": "HIGH"}.get(word)
-
-        if updated_score is not None:
-            result["severity_score"] = round(updated_score, 1)
-        if updated_risk:
-            result["risk_level"] = updated_risk
-
-        result["risk_score"] = result["severity_score"]
-
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# -------------------------------------------------------------------
-# ✅ 3. Emergency Support Logic
-# -------------------------------------------------------------------
 CRITICAL_SYMPTOMS = [
     "chest pain", "difficulty breathing", "severe bleeding", "unconscious", "seizure",
     "stroke symptoms", "severe head injury", "poisoning", "severe allergic reaction",
@@ -240,6 +40,7 @@ CRITICAL_SYMPTOMS = [
     "severe abdominal pain", "sudden confusion", "loss of consciousness",
     "paralysis", "severe trauma", "overdose"
 ]
+
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -251,6 +52,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
          math.sin(dlon / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
 
 
 def get_hospitals_overpass(lat, lng, radius_km=10):
@@ -286,12 +88,14 @@ def get_hospitals_overpass(lat, lng, radius_km=10):
                 'lat': hospital_lat,
                 'lng': hospital_lng,
                 'distance': round(distance, 2)
+                'distance': round(distance, 2)
             })
         hospitals.sort(key=lambda x: x['distance'])
         return hospitals[:15]
     except Exception as e:
         print(f"Error fetching hospitals: {e}")
         return []
+
 
 
 @app.route('/api/emergency-alert', methods=['POST'])
@@ -308,6 +112,7 @@ def emergency_alert():
         })
 
     hospitals = get_hospitals_overpass(user_lat, user_lng, 5)
+    hospitals = get_hospitals_overpass(user_lat, user_lng, 5)
     return jsonify({
         'is_emergency': True,
         'message': 'CRITICAL SYMPTOMS DETECTED! Call emergency services immediately!',
@@ -316,9 +121,6 @@ def emergency_alert():
     })
 
 
-# -------------------------------------------------------------------
-# ✅ 4. Lifestyle Recommendation Logic (Fixed + Logging + Robust normalization)
-# -------------------------------------------------------------------
 def build_prompt(health_condition):
     return f"""
 You are a professional medical lifestyle assistant.
@@ -425,7 +227,12 @@ def lifestyle_recommendations():
             return jsonify({"success": False, "error": "Health condition required"}), 400
 
         using_gemini = False
-        raw_recs = {}
+        raw_recs = {
+                "diet": {"general": ["Include fruits & vegetables", "Prefer whole grains"], "specific_conditions": ["Limit sugar intake"]},
+                "activity": {"general": ["Aim 30 min walk daily", "Include strength training"], "specific_conditions": ["Start gently"]},
+                "prevention": {"general": ["Sleep 7-9 hours", "Manage stress"], "specific_conditions": ["Avoid triggers"]},
+                "wellness_tips": ["Practice gratitude", "Stay connected", "Take breaks"]
+            }
 
         if genai and GEMINI_API_KEY:
             try:
@@ -445,10 +252,9 @@ def lifestyle_recommendations():
                     raw_recs = {"wellness_tips": ensure_array(cleaned)}
             except Exception as e:
                 print(f"⚠️ Gemini call failed → fallback: {e}")
-                raw_recs = generate_mock_recommendations(condition)
         else:
             print("⚠️ Gemini unavailable → using mock data.")
-            raw_recs = generate_mock_recommendations(condition)
+            
 
         normalized = normalize_recommendations(raw_recs)
         print(f"✅ Source: {'Gemini' if using_gemini else 'Mock'} | Condition: {condition}")
@@ -459,18 +265,6 @@ def lifestyle_recommendations():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-def generate_mock_recommendations(condition):
-    return {
-        "diet": {"general": ["Include fruits & vegetables", "Prefer whole grains"], "specific_conditions": ["Limit sugar intake"]},
-        "activity": {"general": ["Aim 30 min walk daily", "Include strength training"], "specific_conditions": ["Start gently"]},
-        "prevention": {"general": ["Sleep 7-9 hours", "Manage stress"], "specific_conditions": ["Avoid triggers"]},
-        "wellness_tips": ["Practice gratitude", "Stay connected", "Take breaks"]
-    }
-
-
-# -------------------------------------------------------------------
-# ✅ 5. Save Recommendations PDF (UPDATED with Gemini filename detection)
-# -------------------------------------------------------------------
 @app.route("/api/download-recommendations", methods=["POST"])
 def download_recommendations():
     try:
@@ -559,24 +353,6 @@ def download_recommendations():
     except Exception as e:
         print("❌ Error generating PDF:", e)
         return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------
-# ✅ 6. Health Check
-# -------------------------------------------------------------------
-@app.route("/api/health", methods=["GET"])
-def health_check():
-    return jsonify({
-        "status": "healthy",
-        "gemini_available": bool(GEMINI_API_KEY),
-        "google_places_enabled": bool(GOOGLE_API_KEY),
-        "service": "MediSense Unified Backend"
-    })
-
-
-# -------------------------------------------------------------------
-# ✅ 7. Run
-# -------------------------------------------------------------------
+    
 if __name__ == "__main__":
-    print("🚀 Starting MediSense Unified Service (Lifestyle + Symptom Analysis + Emergency)...")
-    app.run(debug=True, port=5000)
+    app.run(port=5000)

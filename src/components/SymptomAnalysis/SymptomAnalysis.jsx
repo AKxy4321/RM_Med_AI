@@ -10,7 +10,11 @@ import {
 } from 'lucide-react';
 
 import { db } from '../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 
 const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
   const [formData, setFormData] = useState({ symptoms: '', duration: '', age: '' });
@@ -45,63 +49,68 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
     recognition.onend = () => setIsRecording(false);
   };
 
-  const analyzeSymptoms = async () => {
-    if (!formData.symptoms.trim()) {
-      setError('Please describe your symptoms before analysis.');
-      return;
-    }
+const analyzeSymptoms = async () => {
+  if (!formData.symptoms.trim()) {
+    setError("Please describe your symptoms before analysis.");
+    return;
+  }
 
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetch('http://localhost:5000/api/symptom-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symptoms_input: formData.symptoms,
-          duration_days: formData.duration || 0,
-          age: formData.age || null
-        })
-      });
+  setLoading(true);
+  setError("");
 
-      const data = await response.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResult(data);
-        if (onAnalysisComplete) onAnalysisComplete(data);
-          // === 🔥 Save detected symptoms to Firestore ===
-          try {
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (user?.id) {
-              const ref = collection(db, 'users', String(user.id), 'symptom_records');
-              const docRef = await addDoc(ref, {
-                detected_symptoms: data.detected_symptoms || [],
-                risk_level: data.risk_level || 'UNKNOWN',
-                severity_score: data.severity_score || 0,
-                ai_summary: data.ai_summary || '',
-                created_at: serverTimestamp(),
-              });
+  try {
+    const response = await fetch("http://localhost:5000/api/symptom-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        symptoms_input: formData.symptoms,
+        duration_days: formData.duration || 0,
+        age: formData.age || null,
+      }),
+    });
 
-              console.log(
-                `✅ Symptom analysis saved to Firestore: user=${user.id}, docId=${docRef.id}`
-              );
-              console.log('Saved data:', data);
-            } else {
-              console.warn('⚠️ No user found in localStorage. Cannot save to Firestore.');
-            }
-          } catch (dbErr) {
-            console.error('❌ Error saving to Firestore:', dbErr);
-          }
+    const data = await response.json();
+
+    if (data.error) {
+      setError(data.error);
+    } else {
+      setResult(data);
+      if (onAnalysisComplete) onAnalysisComplete(data);
+
+      // === 🔥 Save detected symptoms to Firestore ===
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (user?.id) {
+          const ref = collection(db, "users", String(user.id), "symptom_records");
+          const docRef = await addDoc(ref, {
+            detected_symptoms: data.detected_symptoms || [],
+            risk_level: data.risk_level || "UNKNOWN",
+            severity_score: data.severity_score || 0,
+            ai_summary: data.ai_summary || "",
+            created_at: serverTimestamp(),
+          });
+
+          console.log(
+            `✅ Symptom analysis saved to Firestore: user=${user.id}, docId=${docRef.id}`
+          );
+        } else {
+          console.warn(
+            "⚠️ No user found in localStorage. Cannot save to Firestore."
+          );
+        }
+      } catch (dbErr) {
+        console.error("❌ Error saving to Firestore:", dbErr);
       }
-    } catch (err) {
-      setError('⚠️ Unable to connect to backend. Please ensure Flask is running on port 5000.');
-    } finally {
-      setLoading(false);
     }
-    
-    
-  };
+  } catch (err) {
+    setError(
+      "⚠️ Unable to connect to backend. Please ensure Flask is running on port 5000."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
