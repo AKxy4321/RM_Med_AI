@@ -9,6 +9,9 @@ import {
   HeartPulse
 } from 'lucide-react';
 
+import { db } from '../../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
   const [formData, setFormData] = useState({ symptoms: '', duration: '', age: '' });
   const [isRecording, setIsRecording] = useState(false);
@@ -67,13 +70,37 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
       } else {
         setResult(data);
         if (onAnalysisComplete) onAnalysisComplete(data);
-        console.log(data);
+          // === 🔥 Save detected symptoms to Firestore ===
+          try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user?.id) {
+              const ref = collection(db, 'users', String(user.id), 'symptom_records');
+              const docRef = await addDoc(ref, {
+                detected_symptoms: data.detected_symptoms || [],
+                risk_level: data.risk_level || 'UNKNOWN',
+                severity_score: data.severity_score || 0,
+                ai_summary: data.ai_summary || '',
+                created_at: serverTimestamp(),
+              });
+
+              console.log(
+                `✅ Symptom analysis saved to Firestore: user=${user.id}, docId=${docRef.id}`
+              );
+              console.log('Saved data:', data);
+            } else {
+              console.warn('⚠️ No user found in localStorage. Cannot save to Firestore.');
+            }
+          } catch (dbErr) {
+            console.error('❌ Error saving to Firestore:', dbErr);
+          }
       }
     } catch (err) {
       setError('⚠️ Unable to connect to backend. Please ensure Flask is running on port 5000.');
     } finally {
       setLoading(false);
     }
+    
+    
   };
 
   return (
