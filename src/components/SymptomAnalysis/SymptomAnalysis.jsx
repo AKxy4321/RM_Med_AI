@@ -151,6 +151,7 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
                   value={formData.duration}
                   onChange={handleInputChange}
                   placeholder="e.g. 3"
+                  min="0"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -161,6 +162,7 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
                   name="age"
                   value={formData.age}
                   onChange={handleInputChange}
+                  min="1"
                   placeholder="e.g. 25"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
                 />

@@ -204,8 +204,6 @@ class SymptomAnalyzer:
             "human_input": human_input,
             "symptom_analysis": {
                 "detected_symptoms": symptom_result.get("detected_symptoms", []),
-                "severity_score": symptom_result.get("severity_score", None),
-                "risk_level": symptom_result.get("risk_level", None),
                 "possible_conditions": [
                     {
                         "condition": cond["condition"],
@@ -215,8 +213,7 @@ class SymptomAnalyzer:
                     }
                     for cond in symptom_result.get("possible_conditions", [])
                 ],
-            },
-            "disclaimer": symptom_result.get("disclaimer", "")
+            }
         }
         
         return json.dumps(payload, indent=2, ensure_ascii=False)
@@ -243,8 +240,6 @@ class SymptomAnalyzer:
                 final_symptoms.append(s)
 
         return final_symptoms
-    
-    def calculate_severity_score(self, symptoms: List[str], age: int = None, duration_days: int = 0) -> Tuple[float, str]:
         """Compute severity score with dynamic multipliers for duration and age."""
         if not symptoms:
             return 0, 'unknown'
@@ -318,18 +313,8 @@ class SymptomAnalyzer:
                     'advice': data['advice']
                 })
         return sorted(matches, key=lambda x: x['match_score'], reverse=True)
-    
-    def get_recommendation(self, risk_level: str) -> Dict:
-        recs = {
-            'emergency': {'action': '🚨 CALL EMERGENCY SERVICES IMMEDIATELY', 'urgency':'IMMEDIATE'},
-            'high': {'action': '⚠️ Seek urgent medical care', 'urgency':'URGENT'},
-            'moderate': {'action': '📅 Schedule doctor appointment soon', 'urgency':'SOON'},
-            'low': {'action': '🏠 Self-care and monitor', 'urgency':'NON-URGENT'}
-        }
-        return recs.get(risk_level, recs['moderate'])
         
-    def analyze(self, symptoms_input: str, duration_days: int = 0, 
-                age: int = None, existing_conditions: List[str] = None) -> Dict:
+    def analyze(self, symptoms_input) -> Dict:
         """
         Main analysis function.
         
@@ -342,7 +327,6 @@ class SymptomAnalyzer:
         Returns:
             Dictionary with analysis results and recommendations
         """
-        # Extract symptoms
         symptoms = self.preprocess_input(symptoms_input)
         
         if not symptoms:
@@ -351,90 +335,12 @@ class SymptomAnalyzer:
                 'timestamp': datetime.now().isoformat()
             }
         
-        # Calculate severity
-        severity_score, risk_level = self.calculate_severity_score(symptoms)
-        
-        # Match to conditions
         possible_conditions = self.match_condition(symptoms)
-        
-        # Get recommendations
-        recommendation = self.get_recommendation(risk_level)
-        
-        # Build result
+
         result = {
             'timestamp': datetime.now().isoformat(),
             'detected_symptoms': symptoms,
-            'severity_score': severity_score,
-            'risk_level': risk_level.upper(),
-            'recommendation': recommendation,
-            'possible_conditions': possible_conditions[:3],  # Top 3 matches
-            'disclaimer': '⚕️ This is not a medical diagnosis. Always consult healthcare professionals for proper medical advice.'
+            'possible_conditions': possible_conditions[:5],  # Top 5 matches
         }
         
-        # Add lifestyle suggestions for low-risk cases
-        if risk_level in ['low', 'moderate']:
-            result['lifestyle_tips'] = self.get_lifestyle_tips(symptoms)
-        
         return result
-    
-    def get_lifestyle_tips(self, symptoms: List[str]) -> List[str]:
-        tips = []
-
-        if any(s in symptoms for s in ['fever','fatigue','body aches']):
-            tips.append('💧 Stay hydrated and rest')
-        if any(s in symptoms for s in ['cough','sore throat','runny nose']):
-            tips.append('🍯 Warm liquids and throat care')
-        if any(s in symptoms for s in ['nausea','vomiting','diarrhea']):
-            tips.append('🥨 Bland diet and fluids')
-        if any(s in symptoms for s in ['rash','hives','itching']):
-            tips.append('🧴 Gentle skincare, avoid scratching')
-        if any(s in symptoms for s in ['confusion','dizziness']):
-            tips.append('🧠 Take breaks and monitor symptoms')
-        
-        tips.append('🧼 Wash hands and practice hygiene')
-        tips.append('🏋️‍♂️ Moderate exercise if able')
-
-        return tips
-
-
-if __name__ == "__main__":
-    analyzer = SymptomAnalyzer()
-
-    # Example 1: chest pain
-    symptoms_input = "I have a chest pain and severe headache"
-    result = analyzer.analyze(
-        symptoms_input=symptoms_input,
-        duration_days=2,
-        age=30
-    )
-
-    prompt = f"""
-    You are a highly knowledgeable medical assistant with access to a broad medical knowledge base. 
-    Analyze the following symptom analysis JSON and provide a clear, user-friendly summary.
-
-    Instructions:
-    1. Treat the JSON as reference, but generate your own complete assessment.
-    2. List detected symptoms clearly.
-    3. Identify possible conditions or causes relevant to the symptoms.
-    4. Provide recommendations in plain language, emphasizing safety and urgency as needed.
-    5. Include lifestyle or self-care tips where appropriate.
-    6. Format the output for readability:
-    - Use bullet points for symptoms, conditions, recommendations, and tips.
-    - Include emojis for clarity.
-    - Keep sentences short and concise.
-    - Provide a one-line overall summary at the end.
-    7. Do NOT mention or comment on missing conditions or discrepancies from the JSON.
-
-    Human input:
-    {symptoms_input}
-
-    JSON input:
-    {analyzer.feed_to_gemini(result, symptoms_input)}
-    """
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
-        contents=prompt,
-    )
-
-    print(response.text)
