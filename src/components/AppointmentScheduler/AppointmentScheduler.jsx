@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from "react";
+
 import {
   Clock,
   MapPin,
-  Stethoscope,
   CheckCircle,
-  ArrowLeft,
   Loader2,
   Zap,
   Settings,
   Star,
-  Bell,
   Sparkles,
   Heart,
-  AlertTriangle,
   Brain
 } from "lucide-react";
 
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  limit
+} from "firebase/firestore";
+import { db } from "../../firebase";
+
+
 const AppointmentScheduler = ({
-  symptomAnalysis,
   onBackToDashboard,
   onShowLifestyleRecommendations,
 }) => {
@@ -31,63 +37,52 @@ const AppointmentScheduler = ({
   const [hospitals, setHospitals] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [healthInput, setHealthInput] = useState("");
+  const [localAnalysis, setLocalAnalysis] = useState({
+  severity_score: 0,
+  risk_level: "UNKNOWN",
+  ai_summary: "",
+  recommendation: {},
+});
+const analysis = localAnalysis;
 
-  const defaultHospitals = [
-    {
-      id: 1,
-      name: "City General Hospital",
-      specialization: "General Practice & Emergency",
-      address: "123 Medical Center Dr, Healthcare District",
-      distance: "2.3",
-      rating: 4.5,
-      reviewCount: 284,
-      waitTime: "15–30 mins",
-      availableSlots: [
-        {
-          id: 1,
-          date: new Date().toISOString().split("T")[0],
-          time: "09:00 AM",
-          type: "Urgent",
-          duration: "30 min",
-        },
-        {
-          id: 2,
-          date: new Date().toISOString().split("T")[0],
-          time: "11:00 AM",
-          type: "Standard",
-          duration: "30 min",
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Sunrise Multicare Hospital",
-      specialization: "Emergency & Cardiology",
-      address: "45 Wellness Road, Midtown",
-      distance: "4.1",
-      rating: 4.7,
-      reviewCount: 342,
-      waitTime: "20–40 mins",
-      availableSlots: [
-        {
-          id: 3,
-          date: new Date().toISOString().split("T")[0],
-          time: "10:30 AM",
-          type: "Standard",
-          duration: "30 min",
-        },
-        {
-          id: 4,
-          date: new Date().toISOString().split("T")[0],
-          time: "03:00 PM",
-          type: "Standard",
-          duration: "30 min",
-        },
-      ],
-    },
-  ];
+useEffect(() => {
+  const loadUserSymptoms = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) return;
 
-  // Fetch hospitals when component mounts or location changes
+      const ref = collection(db, "users", String(user.id), "symptom_records");
+      const q = query(ref, orderBy("created_at", "desc"), limit(1));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const latest = snapshot.docs[0].data();
+        const detected = Array.isArray(latest.detected_symptoms)
+          ? latest.detected_symptoms
+          : [];
+
+        if (detected.length > 0) {
+          setHealthInput(detected.join(", "));
+        } else if (latest.ai_summary) {
+          setHealthInput(latest.ai_summary);
+        }
+
+        setLocalAnalysis({
+          severity_score: latest.severity_score ?? 0,
+          risk_level: latest.risk_level ?? "UNKNOWN",
+          ai_summary: latest.ai_summary ?? "",
+          recommendation: latest.recommendation || {},
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load latest symptoms from Firebase:", err);
+    }
+  };
+
+  loadUserSymptoms();
+}, []);
+
   useEffect(() => {
     if (userLocation) {
       fetchHospitals(userLocation);
@@ -125,7 +120,7 @@ const AppointmentScheduler = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symptoms: symptomAnalysis?.detected_symptoms?.join(", ") || "general",
+          symptoms: healthInput || "general",
           latitude: coords.latitude,
           longitude: coords.longitude,
         }),
@@ -168,18 +163,17 @@ const AppointmentScheduler = ({
         console.log("Formatted hospitals:", formattedHospitals);
         setHospitals(formattedHospitals);
       } else {
-        console.log("Using default hospitals - no data from API");
-        setHospitals(defaultHospitals);
+        throw new Error("No hospitals found from API response.");
       }
     } catch (err) {
       console.error("Hospital fetch error:", err);
-      console.log("Using default hospitals due to error");
-      setHospitals(defaultHospitals);
+      alert("Failed to load hospitals. Please try again later.");
+      setHospitals([]);
     }
   };
 
   const getUrgencyRecommendation = () => {
-    const severity = symptomAnalysis?.severity_score || 0;
+    const severity = analysis?.severity_score || 0;
     if (severity >= 8) return "auto";
     if (severity >= 5) return "recommended-auto";
     return "manual";
@@ -203,13 +197,22 @@ const AppointmentScheduler = ({
     setAutoBookingProgress(["Analyzing symptoms...", "Finding best hospital..."]);
     await new Promise((r) => setTimeout(r, 1500));
   
-    // Use current hospitals or defaults if empty
-    let availableHospitals = hospitals.length > 0 ? hospitals : defaultHospitals;
+    let availableHospitals = [];
+
+    if (hospitals.length > 0) {
+      availableHospitals = hospitals;
+    } else {
+      console.error("No hospitals found at all. Cannot continue booking.");
+      alert("No hospitals were found nearby. Please try again later or adjust your location settings.");
+      setLoading(false);
+      setCurrentStep(1);
+      return;
+    }
+
     console.log("Available hospitals for auto-booking:", availableHospitals);
   
-    // ✅ Step 1: Choose nearest hospital (by numeric distance)
     let nearestHospital = null;
-  
+
     if (availableHospitals.length > 0) {
       try {
         nearestHospital = availableHospitals.reduce((closest, current) => {
@@ -219,11 +222,15 @@ const AppointmentScheduler = ({
           return distA < distB ? closest : current;
         });
       } catch (err) {
-        console.warn("Error determining nearest hospital, using default:", err);
+        console.warn("Error determining nearest hospital, using first one:", err);
         nearestHospital = availableHospitals[0];
       }
     } else {
-      nearestHospital = defaultHospitals[0];
+      console.error("No hospitals available to select from.");
+      alert("No hospitals found nearby. Please try again later.");
+      setLoading(false);
+      setCurrentStep(1);
+      return;
     }
   
     console.log("Selected nearest hospital:", nearestHospital);
@@ -335,13 +342,13 @@ const AppointmentScheduler = ({
         </div>
 
         {/* AI Summary */}
-        {symptomAnalysis?.ai_summary && (
+        {analysis?.ai_summary && (
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl border border-blue-200 text-left mt-6">
             <div className="flex items-center space-x-2 mb-2">
               <Brain className="w-6 h-6 text-blue-700" />
               <h3 className="font-semibold text-blue-700">AI Summary</h3>
             </div>
-            <p className="text-gray-700 whitespace-pre-line">{symptomAnalysis.ai_summary}</p>
+            <p className="text-gray-700 whitespace-pre-line">{analysis.ai_summary}</p>
           </div>
         )}
 
@@ -349,9 +356,9 @@ const AppointmentScheduler = ({
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Analysis Summary</h3>
           <p className="text-gray-700">
-            Severity: {symptomAnalysis?.severity_score || 0}/10 | Risk: {symptomAnalysis?.risk_level || "Medium"}
+            Severity: {analysis?.severity_score || 0}/10 | Risk: {analysis?.risk_level || "Medium"}
           </p>
-          <p className="text-blue-700 mt-1">{symptomAnalysis?.recommendation?.action || "Schedule a consultation"}</p>
+          <p className="text-blue-700 mt-1">{analysis?.recommendation?.action || "Schedule a consultation"}</p>
         </div>
 
         {/* Booking Options */}
