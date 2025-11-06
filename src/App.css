@@ -1,0 +1,485 @@
+/* ====== GLOBAL BASE ====== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ====== DEFAULT REACT APP STYLES ====== */
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ====== DASHBOARD CARD STYLE ====== */
+.emergency-support-card {
+  border-top: 4px solid #ff4b4b;
+}
+
+.action-icon.red {
+  background-color: #ffe5e5;
+  color: #d72638;
+}
+
+/* ====== EMERGENCY SUPPORT STYLES ====== */
+
+.app-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #e0f2fe, #bbf7d0);
+  padding: 1rem;
+}
+
+.main-content {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.header-title h1 {
+  font-size: 1.875rem;
+  font-weight: bold;
+  color: #075985;
+}
+
+.header-subtitle {
+  color: #0369a1;
+}
+
+.icon-red {
+  color: #22c55e;
+}
+
+.icon-blue {
+  color: #0ea5e9;
+}
+
+.icon-sm {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.icon-md {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.icon-lg {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Location Status */
+.location-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.location-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.location-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.location-info span {
+  font-weight: 600;
+}
+
+.status-enabled {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.status-disabled {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #0ea5e9;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0284c7;
+}
+
+.btn-danger {
+  background-color: #075985;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #0c4a6e;
+}
+
+.btn-success {
+  background-color: #22c55e;
+  color: white;
+  flex: 1;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #16a34a;
+  transform: scale(1.02);
+}
+
+.btn-success:active {
+  transform: scale(0.98);
+}
+
+.btn-full {
+  width: 100%;
+  padding: 0.75rem;
+}
+
+/* Section Cards */
+.section-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #0369a1;
+}
+
+/* Symptom Checker */
+.symptom-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #bae6fd;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.symptom-textarea:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+}
+
+.critical-symptoms-box {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #e0f2fe;
+  border-radius: 0.5rem;
+}
+
+.critical-symptoms-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #075985;
+  margin-bottom: 0.5rem;
+}
+
+.critical-symptoms-text {
+  font-size: 0.75rem;
+  color: #0369a1;
+  line-height: 1.5;
+}
+
+/* Emergency Alert */
+.emergency-alert {
+  background-color: #0ea5e9;
+  color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.emergency-alert h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.emergency-alert p {
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.emergency-call-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: white;
+  color: #0ea5e9;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.emergency-call-btn:hover {
+  background-color: #f0f9ff;
+}
+
+/* Error Message */
+.error-message {
+  background-color: #f0f9ff;
+  border: 1px solid #7dd3fc;
+  color: #0369a1;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+/* Hospital Cards */
+.hospitals-header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #075985;
+  margin-bottom: 1rem;
+}
+
+.hospital-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: box-shadow 0.3s;
+}
+
+.hospital-card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.hospital-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.hospital-info h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #0369a1;
+  margin-bottom: 0.25rem;
+}
+
+.hospital-info p {
+  color: #075985;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.distance-badge {
+  background-color: #bae6fd;
+  color: #075985;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hospital-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.hospital-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+}
+
+/* Emergency Services Card */
+.emergency-services-card {
+  background: linear-gradient(to right, #0ea5e9, #0284c7);
+  color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.emergency-services-card h3 {
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.emergency-services-card p {
+  margin-bottom: 0.75rem;
+  opacity: 0.95;
+}
+
+.emergency-number-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: white;
+  color: #0ea5e9;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.emergency-number-btn:hover {
+  background-color: #f0f9ff;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .header-title h1 {
+    font-size: 1.5rem;
+  }
+
+  .location-status {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .location-info {
+    justify-content: center;
+  }
+
+  .hospital-header {
+    flex-direction: column;
+  }
+
+  .distance-badge {
+    align-self: flex-start;
+  }
+
+  .hospital-actions {
+    flex-direction: column;
+  }
+
+  .btn-success {
+    width: 100%;
+  }
+}

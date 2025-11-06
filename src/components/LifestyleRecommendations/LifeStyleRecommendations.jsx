@@ -1,0 +1,524 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Heart, 
+  Activity, 
+  Utensils, 
+  Shield, 
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  ArrowLeft,
+  Send,
+  Stethoscope
+} from 'lucide-react';
+
+const LifestyleRecommendations = ({ userData, onClose }) => {
+  const [recommendations, setRecommendations] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({
+    diet: true,
+    activity: true,
+    prevention: true,
+    wellness: true
+  });
+  const [healthInput, setHealthInput] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  // Pre-fill input if we have data from symptom analysis
+  useEffect(() => {
+    if (userData?.symptoms?.length > 0) {
+      const symptomsText = userData.symptoms.join(', ');
+      setHealthInput(`I have been experiencing ${symptomsText}`);
+    }
+  }, [userData]);
+
+  const fetchRecommendations = async (healthCondition) => {
+    try {
+      setLoading(true);
+      setError(null);
+  
+      // Call Flask backend API
+      const response = await fetch("http://127.0.0.1:5000/api/lifestyle-recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ health_condition: healthCondition }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch recommendations");
+      }
+  
+      setRecommendations(data.recommendations);
+      setSubmitted(true);
+  
+    } catch (err) {
+      console.error("Error fetching recommendations:", err);
+      setError("Unable to load recommendations. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
+  const generateMockRecommendations = (healthCondition) => {
+    // Generate recommendations based on common health conditions
+    const condition = healthCondition.toLowerCase();
+    
+    let specificAdvice = [];
+    
+    if (condition.includes('headache') || condition.includes('migraine')) {
+      specificAdvice = [
+        "Stay hydrated - drink at least 8 glasses of water daily",
+        "Reduce screen time and take regular breaks",
+        "Practice relaxation techniques like deep breathing",
+        "Apply cold compress to forehead when needed"
+      ];
+    } else if (condition.includes('fatigue') || condition.includes('tired')) {
+      specificAdvice = [
+        "Ensure 7-9 hours of quality sleep each night",
+        "Maintain consistent sleep schedule even on weekends",
+        "Include iron-rich foods like spinach and lentils in diet",
+        "Practice stress management through meditation or yoga"
+      ];
+    } else if (condition.includes('insomnia') || condition.includes('sleep')) {
+      specificAdvice = [
+        "Establish a relaxing bedtime routine",
+        "Avoid caffeine and heavy meals before bedtime",
+        "Keep your bedroom dark, quiet, and cool",
+        "Limit screen time at least 1 hour before sleep"
+      ];
+    } else if (condition.includes('stress') || condition.includes('anxiety')) {
+      specificAdvice = [
+        "Practice daily mindfulness meditation",
+        "Engage in regular physical activity",
+        "Limit caffeine and alcohol intake",
+        "Connect with supportive friends and family"
+      ];
+    } else if (condition.includes('cold') || condition.includes('flu') || condition.includes('fever')) {
+      specificAdvice = [
+        "Increase fluid intake with warm water and herbal teas",
+        "Get plenty of rest to support immune system",
+        "Use a humidifier to ease breathing",
+        "Consume vitamin C rich foods like citrus fruits"
+      ];
+    } else if (condition.includes('back pain') || condition.includes('neck pain')) {
+      specificAdvice = [
+        "Practice good posture while sitting and standing",
+        "Incorporate gentle stretching exercises daily",
+        "Use ergonomic chair and proper desk setup",
+        "Apply heat therapy to tense muscles"
+      ];
+    } else {
+      specificAdvice = [
+        "Maintain balanced diet with variety of nutrients",
+        "Stay physically active with regular exercise",
+        "Get adequate sleep and manage stress",
+        "Stay hydrated and limit processed foods"
+      ];
+    }
+
+    return {
+      "diet": {
+        "general": [
+          "Include 5-7 servings of fruits and vegetables daily",
+          "Choose whole grains over refined carbohydrates",
+          "Stay hydrated with 8-10 glasses of water",
+          "Limit processed foods and added sugars"
+        ],
+        "specific_conditions": specificAdvice.filter((_, index) => index < 3)
+      },
+      "activity": {
+        "general": [
+          "Aim for 150 minutes of moderate exercise weekly",
+          "Include strength training 2-3 times per week",
+          "Take walking breaks every hour if sedentary",
+          "Practice good posture during daily activities"
+        ],
+        "specific_conditions": [
+          "Listen to your body and adjust intensity as needed",
+          "Combine cardio, strength, and flexibility exercises",
+          "Stay consistent with your exercise routine"
+        ]
+      },
+      "prevention": {
+        "general": [
+          "Get 7-9 hours of quality sleep nightly",
+          "Practice stress management techniques",
+          "Schedule regular health check-ups",
+          "Maintain good hygiene practices"
+        ],
+        "specific_conditions": [
+          "Monitor your symptoms and progress",
+          "Avoid known triggers when possible",
+          "Stay up to date with preventive care"
+        ]
+      },
+      "wellness_tips": [
+        "Maintain consistent daily routines",
+        "Stay socially connected with loved ones",
+        "Practice gratitude and positive thinking",
+        "Take time for hobbies and relaxation"
+      ]
+    };
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (healthInput.trim()) {
+      fetchRecommendations(healthInput);
+    }
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const RecommendationSection = ({ 
+    icon: Icon, 
+    title, 
+    color, 
+    sectionKey, 
+    items 
+  }) => (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <button
+        onClick={() => toggleSection(sectionKey)}
+        className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center space-x-3">
+          <div className={`p-3 rounded-xl ${color}`}>
+            <Icon className="w-6 h-6 text-white" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-gray-900 text-lg">{title}</h3>
+            <p className="text-gray-600 text-sm">
+              {items?.length || 0} recommendations
+            </p>
+          </div>
+        </div>
+        {expandedSections[sectionKey] ? (
+          <ChevronUp className="w-5 h-5 text-gray-400" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-400" />
+        )}
+      </button>
+      
+      {expandedSections[sectionKey] && items && (
+        <div className="px-6 pb-6">
+          <ul className="space-y-3">
+            {items.map((item, index) => (
+              <li key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-gray-700 leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
+  if (!submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+          <button
+            onClick={onClose}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </button>
+
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl">
+                <Stethoscope className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  Lifestyle Recommendations
+                </h1>
+                <p className="text-gray-600">Tell us about your health for personalized advice</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Input Form */}
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-lg font-semibold text-gray-900 mb-4">
+                  Describe your health condition or symptoms
+                </label>
+                <div className="relative">
+                  <textarea
+                    value={healthInput}
+                    onChange={(e) => setHealthInput(e.target.value)}
+                    placeholder="For example: 'I have frequent headaches and fatigue', 'I struggle with sleep issues', or 'I want to improve my overall wellness'"
+                    rows="6"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                    required
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Be specific about your symptoms, concerns, or health goals for better recommendations
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !healthInput.trim()}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Generating Recommendations...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>Get Personalized Recommendations</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Example Conditions */}
+          <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
+            <h3 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              <span>Examples of what to describe:</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+              <div>• Headaches or migraines</div>
+              <div>• Sleep problems or insomnia</div>
+              <div>• Fatigue or low energy</div>
+              <div>• Stress or anxiety</div>
+              <div>• Digestive issues</div>
+              <div>• Joint or muscle pain</div>
+              <div>• Weight management goals</div>
+              <div>• General wellness improvement</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={onClose}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </button>
+          
+          <div className="min-h-96 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Generating personalized health recommendations...</p>
+              <p className="text-sm text-gray-500 mt-2">Analyzing your health condition</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={onClose}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </button>
+          
+          <div className="min-h-96 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Recommendations</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={() => setSubmitted(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back Button */}
+        <button
+          onClick={onClose}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                Your Lifestyle Recommendations
+              </h1>
+              <p className="text-gray-600">Personalized health advice based on your input</p>
+            </div>
+          </div>
+          
+          {/* User's Health Condition */}
+          <div className="bg-blue-50 rounded-xl p-4 max-w-2xl mx-auto">
+            <p className="text-sm text-gray-600 mb-1">Based on your condition:</p>
+            <p className="text-gray-800 font-medium">"{healthInput}"</p>
+          </div>
+        </div>
+
+        {/* Recommendations Grid */}
+        <div className="space-y-6">
+          {recommendations?.diet && (
+            <RecommendationSection
+              icon={Utensils}
+              title="🥗 Diet & Nutrition"
+              color="bg-gradient-to-r from-green-500 to-emerald-500"
+              sectionKey="diet"
+              items={[
+                ...(recommendations.diet.general || []),
+                ...(recommendations.diet.specific_conditions || [])
+              ]}
+            />
+          )}
+
+          {recommendations?.activity && (
+            <RecommendationSection
+              icon={Activity}
+              title="🏃 Activity & Exercise"
+              color="bg-gradient-to-r from-blue-500 to-cyan-500"
+              sectionKey="activity"
+              items={[
+                ...(recommendations.activity.general || []),
+                ...(recommendations.activity.specific_conditions || [])
+              ]}
+            />
+          )}
+
+          {recommendations?.prevention && (
+            <RecommendationSection
+              icon={Shield}
+              title="🩺 Prevention & Care"
+              color="bg-gradient-to-r from-purple-500 to-indigo-500"
+              sectionKey="prevention"
+              items={[
+                ...(recommendations.prevention.general || []),
+                ...(recommendations.prevention.specific_conditions || [])
+              ]}
+            />
+          )}
+
+          {recommendations?.wellness_tips && (
+            <RecommendationSection
+              icon={Heart}
+              title="💫 Wellness Tips"
+              color="bg-gradient-to-r from-pink-500 to-rose-500"
+              sectionKey="wellness"
+              items={recommendations.wellness_tips}
+            />
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-center space-x-4 mt-8 pt-6 border-t border-gray-200">
+          <button
+            onClick={() => setSubmitted(false)}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+          >
+            New Recommendation
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+          >
+            Back to Dashboard
+          </button>
+          <button
+  onClick={async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/download-recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          health_condition: healthInput,
+          recommendations: recommendations
+        }),
+      });
+  
+      if (!response.ok) throw new Error("Failed to download PDF");
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+  
+      // ✅ Get filename directly from backend
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = "medisense_health_recommendations.pdf";
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+  
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+  
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to save recommendations. Try again.");
+    }
+  }}
+  
+  className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+>
+  Save Recommendations
+</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LifestyleRecommendations;
