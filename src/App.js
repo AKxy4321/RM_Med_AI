@@ -45,7 +45,7 @@ function App() {
             onBackToDashboard={() => setCurrentView('dashboard')}
             onAnalysisComplete={(result) => {
               setSymptomAnalysisResult(result);
-              setCurrentView('appointment-scheduling');
+              // setCurrentView('appointment-scheduling');
             }}
           />
         );

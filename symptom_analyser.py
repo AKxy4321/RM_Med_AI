@@ -215,8 +215,6 @@ class SymptomAnalyzer:
                     }
                     for cond in symptom_result.get("possible_conditions", [])
                 ],
-                "recommendation": symptom_result.get("recommendation", None).get("action", None),
-                "lifestyle_tips": symptom_result.get("lifestyle_tips", []),
             },
             "disclaimer": symptom_result.get("disclaimer", "")
         }
@@ -246,30 +244,63 @@ class SymptomAnalyzer:
 
         return final_symptoms
     
-    def calculate_severity_score(self, symptoms: List[str], age: int = None) -> Tuple[float, str]:
-        """Compute weighted severity score and risk level."""
+    def calculate_severity_score(self, symptoms: List[str], age: int = None, duration_days: int = 0) -> Tuple[float, str]:
+        """Compute severity score with dynamic multipliers for duration and age."""
         if not symptoms:
             return 0, 'unknown'
-        scores = [self.symptom_severity[s] for s in symptoms]
-        avg_score = sum(scores)/len(scores)
 
-        # Adjust for multiple symptoms
+        # Base severity average
+        base_scores = [self.symptom_severity[s] for s in symptoms]
+        avg_score = sum(base_scores) / len(base_scores)
 
+        # Multiplier for multiple symptoms (minor bump)
         if len(symptoms) >= 4:
-            avg_score += 1
+            avg_score *= 1.1
 
-        # Age adjustment
-        if age and (age > 65 or age < 5):
-            avg_score += 0.5
+        # Duration multiplier (gradual escalation up to x1.4)
+        # Safe range: no multiplier for <2 days, moderate increase for chronic cases
+        if duration_days <= 2:
+            duration_mult = 1.0
+        elif duration_days <= 5:
+            duration_mult = 1.05
+        elif duration_days <= 10:
+            duration_mult = 1.15
+        elif duration_days <= 20:
+            duration_mult = 1.25
+        else:
+            duration_mult = 1.4  # upper bound for long-term/chronic
 
-        # Risk determination
-        if avg_score >= 8:
+        # Age multiplier (nonlinear, minimal for mid-age, higher for extremes)
+        if age is None:
+            age_mult = 1.0
+        elif age < 1:
+            age_mult = 1.4
+        elif age < 5:
+            age_mult = 1.25
+        elif age < 18:
+            age_mult = 1.1
+        elif age < 60:
+            age_mult = 1.0
+        elif age < 75:
+            age_mult = 1.15
+        else:
+            age_mult = 1.25
+
+        # Apply combined scaling
+        adjusted_score = avg_score * duration_mult * age_mult
+
+        # Cap to 10 to prevent false emergencies
+        adjusted_score = min(adjusted_score, 10)
+
+        # Risk stratification thresholds
+        if adjusted_score >= 8.0:
             risk = 'high'
-        elif avg_score >= 5:
+        elif adjusted_score >= 5.0:
             risk = 'moderate'
         else:
             risk = 'low'
-        return round(avg_score, 1), risk
+
+        return round(adjusted_score, 1), risk
     
     def match_condition(self, symptoms: List[str]) -> List[Dict]:
         """Match symptoms to conditions using overlap ratio."""
@@ -322,14 +353,6 @@ class SymptomAnalyzer:
         
         # Calculate severity
         severity_score, risk_level = self.calculate_severity_score(symptoms)
-        
-        # Adjust risk based on duration
-        if duration_days > 7 and risk_level == 'low':
-            risk_level = 'moderate'
-        
-        # Adjust for age (elderly or very young)
-        if age and (age > 65 or age < 5) and risk_level == 'low':
-            risk_level = 'moderate'
         
         # Match to conditions
         possible_conditions = self.match_condition(symptoms)
@@ -384,28 +407,6 @@ if __name__ == "__main__":
         duration_days=2,
         age=30
     )
-    
-    # print(f"symptoms_input: {symptoms_input}")
-    # print(f"\n🔍 Detected Symptoms: {', '.join(result['detected_symptoms'])}")
-    # print(f"📊 Severity Score: {result['severity_score']}/10")
-    # print(f"⚠️ Risk Level: {result['risk_level']}")
-    # print(f"\n{result['recommendation']['action']}")
-    # print(f"Details: {result['recommendation']}")
-    
-    # if result.get('possible_conditions'):
-    #     print("\n🏥 Possible Conditions:")
-    #     for condition in result['possible_conditions']:
-    #         print(f"  • {condition['condition']} ({condition['match_score']}% match)")
-    #         print(f"    {condition['advice']}")
-    
-    # if result.get('lifestyle_tips'):
-    #     print("\n💡 Lifestyle Tips:")
-    #     for tip in result['lifestyle_tips']:
-    #         print(f"  {tip}")
-    
-    # print(f"\n{result['disclaimer']}")
-
-    # print(analyzer.feed_to_gemini(result, symptoms_input))
 
     prompt = f"""
     You are a highly knowledgeable medical assistant with access to a broad medical knowledge base. 

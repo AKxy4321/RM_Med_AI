@@ -1,4 +1,3 @@
-// src/components/SymptomAnalysis/SymptomAnalysis.jsx
 import React, { useState } from 'react';
 import {
   Activity,
@@ -7,8 +6,7 @@ import {
   ArrowLeft,
   Loader2,
   Brain,
-  HeartPulse,
-  AlertTriangle
+  HeartPulse
 } from 'lucide-react';
 
 const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
@@ -69,9 +67,10 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
       } else {
         setResult(data);
         if (onAnalysisComplete) onAnalysisComplete(data);
+        console.log(data);
       }
     } catch (err) {
-      setError('⚠️ Unable to connect to server. Please ensure backend is running on port 5000.');
+      setError('⚠️ Unable to connect to backend. Please ensure Flask is running on port 5000.');
     } finally {
       setLoading(false);
     }
@@ -91,7 +90,7 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                 Symptom Analysis
               </h1>
-              <p className="text-gray-600">Describe what you're feeling</p>
+              <p className="text-gray-600">Describe what you’re feeling</p>
             </div>
           </div>
         </div>
@@ -195,64 +194,75 @@ const SymptomAnalysis = ({ onBackToDashboard, onAnalysisComplete }) => {
           </div>
         )}
 
-        {/* Results Section */}
-        {result && !error && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 space-y-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <HeartPulse className="w-6 h-6 text-red-500" />
-              <h2 className="text-2xl font-bold text-gray-900">Analysis Result</h2>
-            </div>
+  {/* Results Section */}
+  {result && !error && (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 space-y-6">
+      <div className="flex items-center space-x-3 mb-4">
+        <HeartPulse className="w-6 h-6 text-red-500" />
+        <h2 className="text-2xl font-bold text-gray-900">Analysis Result</h2>
+      </div>
 
-            <p className="text-gray-600">
-              <strong>Detected Symptoms:</strong> {result.detected_symptoms.join(', ')}
-            </p>
-            <p className="text-gray-600">
-              <strong>Severity Score:</strong> {result.severity_score}/10
-            </p>
-            <p className="text-gray-600">
-              <strong>Risk Level:</strong> {result.risk_level}
-            </p>
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="font-semibold text-blue-700">
-                {result.recommendation?.action}
-              </p>
-              <p className="text-sm text-gray-600">
-                Urgency: {result.recommendation?.urgency}
-              </p>
-            </div>
+      {result.detected_symptoms?.length > 0 && (
+        <p className="text-gray-600">
+          <strong>Detected Symptoms:</strong> {result.detected_symptoms.join(', ')}
+        </p>
+      )}
 
-            {result.possible_conditions?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Possible Conditions
-                </h3>
-                <ul className="list-disc ml-6 space-y-1 text-gray-700">
-                  {result.possible_conditions.map((cond, i) => (
-                    <li key={i}>
-                      <strong>{cond.condition}</strong> ({cond.match_score}% match) –{' '}
-                      {cond.advice}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      <p className="text-gray-600">
+        <strong>Severity Score:</strong> {result.severity_score ?? 'N/A'}/10
+      </p>
 
-            {result.lifestyle_tips && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Lifestyle Tips
-                </h3>
-                <ul className="list-disc ml-6 text-gray-700">
-                  {result.lifestyle_tips.map((tip, i) => (
-                    <li key={i}>{tip}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      <p className="text-gray-600">
+        <strong>Risk Level:</strong> {result.risk_level ?? 'Unknown'}
+      </p>
 
-            <p className="text-xs text-gray-500 italic">{result.disclaimer}</p>
-          </div>
-        )}
+      {/* Risk visualization bar */}
+      <div className="w-full bg-gray-100 rounded-full h-3 mb-3">
+        <div
+          className={`h-3 rounded-full ${
+            result.severity_score >= 8
+              ? 'bg-red-500'
+              : result.severity_score >= 5
+              ? 'bg-yellow-400'
+              : 'bg-green-500'
+          }`}
+          style={{ width: `${(result.severity_score / 10) * 100}%` }}
+        />
+      </div>
+
+    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+      <p className="font-semibold text-blue-700">
+        {result.recommendation?.action ?? 'No recommendation available'}
+      </p>
+      <p className="text-sm text-gray-600">
+        Urgency: {result.recommendation?.urgency ?? 'N/A'}
+      </p>
+    </div>
+
+    {/* Gemini summary */}
+    {typeof result.ai_summary === 'string' && result.ai_summary.trim() !== '' && (
+      <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
+        <h3 className="font-semibold text-blue-700 mb-2">🧠 AI Summary</h3>
+        <p className="text-gray-700 whitespace-pre-line">{result.ai_summary}</p>
+      </div>
+    )}
+
+    {result.possible_conditions?.length > 0 && (
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Possible Conditions</h3>
+        <ul className="list-disc ml-6 space-y-1 text-gray-700">
+          {result.possible_conditions.map((cond, i) => (
+            <li key={i}>
+              <strong>{cond.condition}</strong> ({cond.match_score}% match) – {cond.advice}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <p className="text-xs text-gray-500 italic">{result.disclaimer}</p>
+  </div>
+)}
       </div>
     </div>
   );
