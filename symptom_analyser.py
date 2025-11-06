@@ -4,7 +4,9 @@ import json
 from google import genai
 from dotenv import load_dotenv
 from datetime import datetime
-from typing import List, Dict, Tuple
+from typing import List, Dict
+from rapidfuzz import fuzz
+import math
 
 load_dotenv()
 
@@ -18,174 +20,82 @@ class SymptomAnalyzer:
     
     def __init__(self):
 
-        # Symptom severity baseline (1-10)
         self.symptom_severity = {
-            'fever': 4, 'high fever': 7, 'chills': 4, 'sweating': 3,
-            'cough': 3, 'bloody cough': 8, 'shortness of breath': 7,
-            'severe shortness of breath': 9, 'chest pain': 9,
-            'palpitations': 6, 'syncope': 9, 'headache': 3,
-            'severe headache': 9, 'migraine': 6, 'dizziness': 5,
-            'lightheadedness': 5, 'confusion': 7, 'altered mental status': 9,
+            # General / Constitutional
+            'fever': 4, 'high fever': 7, 'very high fever': 8,
+            'chills': 4, 'sweating': 3, 'fatigue': 2, 'severe fatigue': 5,
+            'weakness': 3, 'extreme weakness': 6, 'weight loss': 4, 'rapid weight loss': 6,
+            'loss of appetite': 2, 'night sweats': 5, 'malaise': 3,
+
+            # Respiratory
+            'cough': 3, 'productive cough': 4, 'dry cough': 3,
+            'bloody cough': 8, 'shortness of breath': 7,
+            'severe shortness of breath': 9, 'difficulty breathing': 8,
+            'wheezing': 5, 'stridor': 9, 'rapid breathing': 7,
+            'slow breathing': 8, 'apnea': 10, 'difficulty breathing while lying down': 8,
+
+            # Cardiovascular
+            'chest pain': 9, 'pressure in chest': 8, 'palpitations': 6,
+            'irregular heartbeat': 7, 'syncope': 9, 'fainting': 7,
+            'cold sweat': 6, 'leg swelling': 5, 'sudden leg swelling': 7,
+            'calf pain': 6, 'bluish lips': 9, 'pallor': 6,
+            'low blood pressure symptom': 8, 'high blood pressure symptom': 5,
+
+            # Neurological
+            'headache': 3, 'severe headache': 9, 'migraine': 6,
+            'dizziness': 5, 'lightheadedness': 5, 'vertigo': 6,
+            'confusion': 7, 'altered mental status': 9,
+            'memory loss': 6, 'difficulty speaking': 8,
+            'numbness': 6, 'weakness on one side': 9,
+            'loss of coordination': 7, 'seizure': 9,
+            'loss of consciousness': 10, 'tremor': 4, 'blurred vision': 6,
+            'double vision': 7, 'slurred speech': 8,
+
+            # Gastrointestinal
             'nausea': 3, 'vomiting': 5, 'persistent vomiting': 7,
-            'diarrhea': 4, 'bloody diarrhea': 8, 'abdominal pain': 6,
-            'severe abdominal pain': 9, 'loss of appetite': 2,
-            'rash': 3, 'hives': 6, 'itching': 3, 'swelling': 6,
-            'facial swelling': 8, 'difficulty swallowing': 7,
-            'sore throat': 3, 'runny nose': 2, 'sneezing': 1,
-            'fatigue': 2, 'body aches': 3, 'muscle weakness': 5,
-            'joint pain': 4, 'back pain': 4,
+            'blood in vomit': 9, 'diarrhea': 4, 'bloody diarrhea': 8,
+            'black stool': 9, 'abdominal pain': 6, 'severe abdominal pain': 9,
+            'bloating': 3, 'constipation': 3, 'loss of appetite': 2,
+            'jaundice': 7, 'yellowing of skin': 7, 'fruity breath': 7,
+
+            # Genitourinary
             'urinary frequency': 3, 'painful urination': 5,
+            'difficulty urinating': 5, 'urinary retention': 8,
             'blood in urine': 7, 'flank pain': 7,
-            'leg swelling': 5, 'calf pain': 6,
-            'redness': 3, 'warmth': 4, 'pus': 6, 'cellulitis signs': 7,
-            'loss of consciousness': 10, 'seizure': 9,
-            'fainting': 7, 'difficulty breathing while lying down': 8,
-            'jaundice': 7, 'yellowing of skin': 7,
-            'rapid breathing': 7, 'slow breathing': 8, 'apnea': 10,
-            'fruity breath': 7, 'polydipsia': 5, 'polyuria': 5,
-            'confusion in diabetics': 8, 'extreme thirst': 5,
-            'cold sweat': 6, 'pallor': 6,
-            'high blood pressure symptom': 5, 'low blood pressure symptom': 8,
-            'blood in vomit': 9, 'black stool': 9
-        }
-        
-        # Common conditions based on symptom patterns
-        self.conditions = {
-            'common_cold': {
-                'symptoms': ['cough', 'sore throat', 'runny nose', 'sneezing', 'mild fever'],
-                'care_level': 'self-care',
-                'advice': 'Rest, stay hydrated, OTC medications. Usually resolves in 7-10 days.'
-            },
-            'influenza': {
-                'symptoms': ['fever', 'chills', 'sweating', 'body aches', 'fatigue', 'cough', 'headache'],
-                'care_level': 'home-care/medical advice if severe',
-                'advice': 'Rest, hydration, antipyretics. Seek doctor if high fever or breathing difficulty.'
-            },
-            'pneumonia': {
-                'symptoms': ['cough', 'fever', 'shortness of breath', 'chest pain', 'productive cough'],
-                'care_level': 'medical',
-                'advice': 'Seek doctor evaluation. Antibiotics may be needed. Rest and hydration.'
-            },
-            'asthma_exacerbation': {
-                'symptoms': ['shortness of breath', 'wheezing', 'chest tightness', 'difficulty breathing while lying down'],
-                'care_level': 'medical/emergency if severe',
-                'advice': 'Use inhaler as prescribed, seek immediate medical attention if symptoms worsen.'
-            },
-            'myocardial_infarction': {
-                'symptoms': ['chest pain', 'pressure in chest', 'shortness of breath', 'cold sweat', 'nausea', 'lightheadedness'],
-                'care_level': 'emergency',
-                'advice': 'Call emergency services immediately. Do not drive yourself.'
-            },
-            'stroke': {
-                'symptoms': ['sudden weakness', 'facial droop', 'slurred speech', 'loss of vision', 'confusion', 'sudden severe headache'],
-                'care_level': 'emergency',
-                'advice': 'Call emergency services immediately. Early intervention is critical.'
-            },
-            'hypertensive_crisis': {
-                'symptoms': ['headache', 'chest pain', 'shortness of breath', 'confusion', 'nausea', 'blurred vision', 'high blood pressure symptom'],
-                'care_level': 'emergency',
-                'advice': 'Seek immediate medical attention. Do not attempt to self-medicate.'
-            },
-            'hypotensive_crisis': {
-                'symptoms': ['dizziness', 'fainting', 'low blood pressure symptom', 'pale and clammy'],
-                'care_level': 'emergency',
-                'advice': 'Lay patient down, elevate legs, seek urgent medical care.'
-            },
-            'severe_allergic_reaction': {
-                'symptoms': ['facial swelling', 'hives', 'difficulty swallowing', 'airway obstruction', 'anaphylaxis'],
-                'care_level': 'emergency',
-                'advice': 'Use epinephrine if prescribed, call emergency services immediately.'
-            },
-            'appendicitis': {
-                'symptoms': ['severe abdominal pain', 'nausea', 'vomiting', 'loss of appetite', 'mild fever'],
-                'care_level': 'medical',
-                'advice': 'Seek immediate medical evaluation. Surgery may be required.'
-            },
-            'gastroenteritis': {
-                'symptoms': ['diarrhea', 'vomiting', 'abdominal pain', 'nausea', 'mild fever', 'dehydration signs'],
-                'care_level': 'self-care/medical if severe',
-                'advice': 'Hydrate, rest, oral rehydration solution. Seek doctor if blood in stool or severe dehydration.'
-            },
-            'urinary_tract_infection': {
-                'symptoms': ['painful urination', 'urinary frequency', 'flank pain', 'blood in urine', 'fever'],
-                'care_level': 'medical',
-                'advice': 'Seek doctor for antibiotics. Drink plenty of water.'
-            },
-            'deep_vein_thrombosis': {
-                'symptoms': ['calf pain', 'leg swelling', 'warmth', 'redness'],
-                'care_level': 'medical/emergency if pulmonary embolism suspected',
-                'advice': 'Seek urgent medical evaluation. Avoid massaging the limb.'
-            },
-            'diabetic_emergency': {
-                'symptoms': ['confusion in diabetics', 'fruity breath', 'extreme thirst', 'polyuria', 'nausea', 'vomiting'],
-                'care_level': 'emergency',
-                'advice': 'Check blood glucose immediately, seek urgent medical care if very high or low.'
-            },
-            'severe_dehydration': {
-                'symptoms': ['extreme thirst', 'dry mouth', 'dizziness', 'confusion', 'sunken eyes', 'low blood pressure symptom'],
-                'care_level': 'emergency if severe',
-                'advice': 'Administer oral rehydration solution, seek urgent medical care if unable to drink or hypotensive.'
-            },
-            'seizure_status': {
-                'symptoms': ['ongoing seizures', 'uncontrolled seizure', 'loss of consciousness'],
-                'care_level': 'emergency',
-                'advice': 'Ensure patient safety, call emergency services. Administer emergency anti-seizure medication if prescribed.'
-            },
-            'migraine': {
-                'symptoms': ['headache', 'nausea', 'sensitivity to light', 'vomiting', 'migraine'],
-                'care_level': 'home-care/medical if severe',
-                'advice': 'Rest in a quiet dark room, use prescribed migraine medication.'
-            },
-            'burns_severe': {
-                'symptoms': ['full thickness burn', 'severe burns', 'shock signs', 'pain', 'blisters'],
-                'care_level': 'emergency',
-                'advice': 'Call emergency services. Cool burn if minor, do not apply ointments on severe burns.'
-            },
-            'minor_burn': {
-                'symptoms': ['pain', 'redness', 'blisters', 'swelling'],
-                'care_level': 'self-care',
-                'advice': 'Cool with running water, clean gently, apply sterile dressing. Seek medical care if worsening.'
-            },
-            'cellulitis': {
-                'symptoms': ['redness', 'warmth', 'swelling', 'pus', 'cellulitis signs', 'fever'],
-                'care_level': 'medical',
-                'advice': 'Seek doctor for antibiotics. Keep area elevated and clean.'
-            },
-            'vomiting_illness': {
-                'symptoms': ['nausea', 'vomiting', 'persistent vomiting', 'abdominal pain'],
-                'care_level': 'self-care/medical if severe',
-                'advice': 'Hydrate, avoid solid foods temporarily. Seek medical attention if persistent or blood in vomit.'
-            },
-            'jaundice': {
-                'symptoms': ['yellowing of skin', 'jaundice', 'fatigue', 'abdominal pain'],
-                'care_level': 'medical',
-                'advice': 'Seek doctor for liver function tests. Avoid alcohol and hepatotoxic drugs.'
-            },
-            'hypothermia': {
-                'symptoms': ['cold sweat', 'shivering', 'confusion', 'slow breathing'],
-                'care_level': 'emergency',
-                'advice': 'Move to warm environment, cover with blankets, seek urgent medical care.'
-            },
-            'hyperthermia': {
-                'symptoms': ['high fever', 'confusion', 'rapid breathing', 'dehydration signs'],
-                'care_level': 'emergency if severe',
-                'advice': 'Cool patient with lukewarm water, hydrate, seek urgent medical care if fever >104°F or altered consciousness.'
-            },
-            'suicidal_risk': {
-                'symptoms': ['suicidal thoughts', 'active suicidal intent', 'attempted self-harm', 'severe depression signs'],
-                'care_level': 'emergency',
-                'advice': 'Do not leave person alone. Contact mental health professionals or emergency services immediately.'
-            },
-            'gastrointestinal_bleeding': {
-                'symptoms': ['blood in stool', 'black tarry stool', 'blood in vomit', 'severe abdominal pain'],
-                'care_level': 'emergency',
-                'advice': 'Call emergency services. Do not take NSAIDs. Seek immediate medical evaluation.'
-            },
-            'choking': {
-                'symptoms': ['airway obstruction', 'choking', 'difficulty breathing', 'cyanosis'],
-                'care_level': 'emergency',
-                'advice': 'Perform Heimlich maneuver if trained, call emergency services immediately.'
-            }
+            'pelvic pain': 6, 'vaginal bleeding': 7,
+            'heavy vaginal bleeding': 8, 'scrotal pain': 7,
+
+            # Musculoskeletal
+            'body aches': 3, 'muscle pain': 4, 'muscle weakness': 5,
+            'joint pain': 4, 'joint swelling': 5, 'back pain': 4,
+            'neck stiffness': 6, 'severe neck stiffness': 8,
+
+            # Dermatologic / Allergic
+            'rash': 3, 'hives': 6, 'itching': 3,
+            'swelling': 6, 'facial swelling': 8, 'lips swelling': 8,
+            'redness': 3, 'warmth': 4, 'pus': 6,
+            'cellulitis signs': 7, 'blistering rash': 7,
+            'peeling skin': 8, 'purple rash': 9,
+
+            # ENT (Ear, Nose, Throat)
+            'sore throat': 3, 'severe sore throat': 5,
+            'difficulty swallowing': 7, 'runny nose': 2, 'sneezing': 1,
+            'ear pain': 4, 'ear discharge': 6,
+            'hearing loss': 6, 'hoarseness': 3,
+
+            # Endocrine / Metabolic
+            'extreme thirst': 5, 'polydipsia': 5, 'polyuria': 5,
+            'confusion in diabetics': 8, 'cold intolerance': 3,
+            'heat intolerance': 3, 'sweating episodes': 4,
+
+            # Hematologic / Immune
+            'easy bruising': 4, 'bleeding gums': 5,
+            'nosebleed': 4, 'persistent bleeding': 8,
+            'petechiae': 7, 'lymph node swelling': 4,
+
+            # Psychiatric
+            'anxiety': 3, 'panic attack': 6,
+            'hallucinations': 8, 'paranoia': 7, 'suicidal thoughts': 10
         }
 
     def feed_to_gemini(self, symptom_result: dict, human_input: str) -> str:
@@ -204,117 +114,94 @@ class SymptomAnalyzer:
             "human_input": human_input,
             "symptom_analysis": {
                 "detected_symptoms": symptom_result.get("detected_symptoms", []),
-                "possible_conditions": [
-                    {
-                        "condition": cond["condition"],
-                        "match_score": cond["match_score"],
-                        "care_level": cond["care_level"],
-                        "advice": cond["advice"]
-                    }
-                    for cond in symptom_result.get("possible_conditions", [])
-                ],
+                "severity_score": symptom_result.get("severity_score"),
+                "severity_category": symptom_result.get("severity_category"),
             }
         }
-        
+
         return json.dumps(payload, indent=2, ensure_ascii=False)
+
         
     def preprocess_input(self, text: str) -> List[str]:
-        """Extract symptoms and remove duplicates if a severe version exists."""
         text = text.lower()
-        text = re.sub(r'\b(i have|i feel|experiencing|feeling)\b', '', text)
+        text = re.sub(r'\b(i have|i feel|i am|feeling|experiencing|having|suffering from|with|and|but|the|a|an)\b', '', text)
+        text = re.sub(r'[^a-z\s]', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
 
-        # Step 1: detect all symptoms
-        detected = [s for s in self.symptom_severity if re.search(rf'\b{s}\b', text)]
+        detected = []
+        for s in self.symptom_severity:
+            score = fuzz.partial_ratio(s, text)
+            if score > 80:
+                detected.append(s)
+
         if not detected:
             return []
 
-        # Step 2: remove less severe duplicates
-        # Sort by severity descending
         detected_sorted = sorted(detected, key=lambda s: self.symptom_severity[s], reverse=True)
-        final_symptoms = []
 
+        final_symptoms = []
         for s in detected_sorted:
-            # If a base version already exists in final_symptoms, skip
-            base_included = any(s in fs or fs in s for fs in final_symptoms)
-            if not base_included:
+            overlapping = [fs for fs in final_symptoms if (s in fs or fs in s)]
+            if not overlapping:
                 final_symptoms.append(s)
+            else:
+                keep = s if self.symptom_severity[s] >= self.symptom_severity[overlapping[0]] else overlapping[0]
+                if keep != overlapping[0]:
+                    final_symptoms.remove(overlapping[0])
+                    final_symptoms.append(keep)
 
         return final_symptoms
-        """Compute severity score with dynamic multipliers for duration and age."""
-        if not symptoms:
-            return 0, 'unknown'
-
-        # Base severity average
-        base_scores = [self.symptom_severity[s] for s in symptoms]
-        avg_score = sum(base_scores) / len(base_scores)
-
-        # Multiplier for multiple symptoms (minor bump)
-        if len(symptoms) >= 4:
-            avg_score *= 1.1
-
-        # Duration multiplier (gradual escalation up to x1.4)
-        # Safe range: no multiplier for <2 days, moderate increase for chronic cases
-        if duration_days <= 2:
-            duration_mult = 1.0
-        elif duration_days <= 5:
-            duration_mult = 1.05
-        elif duration_days <= 10:
-            duration_mult = 1.15
-        elif duration_days <= 20:
-            duration_mult = 1.25
-        else:
-            duration_mult = 1.4  # upper bound for long-term/chronic
-
-        # Age multiplier (nonlinear, minimal for mid-age, higher for extremes)
-        if age is None:
-            age_mult = 1.0
-        elif age < 1:
-            age_mult = 1.4
-        elif age < 5:
-            age_mult = 1.25
-        elif age < 18:
-            age_mult = 1.1
-        elif age < 60:
-            age_mult = 1.0
-        elif age < 75:
-            age_mult = 1.15
-        else:
-            age_mult = 1.25
-
-        # Apply combined scaling
-        adjusted_score = avg_score * duration_mult * age_mult
-
-        # Cap to 10 to prevent false emergencies
-        adjusted_score = min(adjusted_score, 10)
-
-        # Risk stratification thresholds
-        if adjusted_score >= 8.0:
-            risk = 'high'
-        elif adjusted_score >= 5.0:
-            risk = 'moderate'
-        else:
-            risk = 'low'
-
-        return round(adjusted_score, 1), risk
     
-    def match_condition(self, symptoms: List[str]) -> List[Dict]:
-        """Match symptoms to conditions using overlap ratio."""
-        matches = []
-        user_set = set(symptoms)
-        for name, data in self.conditions.items():
-            cond_set = set(data['symptoms'])
-            overlap = len(user_set & cond_set)
-            score = (overlap / len(cond_set)) * 100
-            if score > 30:
-                matches.append({
-                    'condition': name.replace('_', ' ').title(),
-                    'match_score': round(score,1),
-                    'care_level': data['care_level'],
-                    'advice': data['advice']
-                })
-        return sorted(matches, key=lambda x: x['match_score'], reverse=True)
+    def compute_severity_score(self, symptoms: List[str], age: int = None, duration_days: int = None) -> Dict:
+        """
+        Compute weighted severity score based on detected symptoms, duration, and age.
+        Adjusts for single-symptom cases so one symptom doesn't dominate the result.
+        """
+        if not symptoms:
+            return {"overall_score": 0, "category": "none"}
+
+        p = 1.6
+        severities = [self.symptom_severity[s] for s in symptoms]
+        base_score = (sum(v ** p for v in severities) / len(severities)) ** (1 / p)
+
+        if duration_days is not None:
+            duration_factor = 1 + 0.4 * (1 - math.exp(-duration_days / 5))
+        else:
+            duration_factor = 1.0
+
+        if age is not None:
+            center_age = 32.5
+            age_factor = 1 + 0.5 * ((abs(age - center_age) / center_age) ** 1.5)
+            age_factor = min(age_factor, 1.5)
+        else:
+            age_factor = 1.0
+
+        symptom_count = len(symptoms)
+        if symptom_count == 1:
+            symptom_factor = 0.6
+        elif symptom_count > 1:
+            symptom_factor = 1.0 - 0.05 * (symptom_count - 2)
+            symptom_factor = max(symptom_factor, 0.8)
+
+        final_score = base_score * duration_factor * age_factor * symptom_factor
+        final_score = round(min(final_score, 10), 2)
+
+        if final_score < 3:
+            category = "low"
+        elif final_score < 7:
+            category = "moderate"
+        else:
+            category = "high"
+
+        return {
+            "overall_score": final_score,
+            "category": category,
+            "age_factor": age_factor,
+            "duration_factor": duration_factor,
+            "symptom_factor": symptom_factor,
+        }
         
-    def analyze(self, symptoms_input) -> Dict:
+    def analyze(self, symptoms_input, age, duration_days) -> Dict:
         """
         Main analysis function.
         
@@ -334,13 +221,16 @@ class SymptomAnalyzer:
                 'error': 'No recognizable symptoms detected. Please describe your symptoms more clearly.',
                 'timestamp': datetime.now().isoformat()
             }
-        
-        possible_conditions = self.match_condition(symptoms)
+
+        severity_result = self.compute_severity_score(symptoms, age, duration_days)
 
         result = {
             'timestamp': datetime.now().isoformat(),
             'detected_symptoms': symptoms,
-            'possible_conditions': possible_conditions[:5],  # Top 5 matches
+            'severity_score': severity_result['overall_score'],
+            'severity_category': severity_result['category'],
+            'age_factor': severity_result['age_factor'],
+            'duration_factor': severity_result['duration_factor']
         }
-        
+
         return result
