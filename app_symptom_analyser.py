@@ -1,9 +1,10 @@
+import os
+import re
+
+from google.genai import Client
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from symptom_analyser import SymptomAnalyzer
-from google import genai
-import os
-import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 analyzer = SymptomAnalyzer()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = Client(api_key=os.getenv("GEMINI_API_KEY"))
 
         # === Gemini AI summary ===
 @app.route('/api/symptom-analysis', methods=['POST'])
@@ -68,12 +69,12 @@ def analyze_symptoms():
             JSON input:
             {analyzer.feed_to_gemini(result, symptoms_input)}
             """
-
-
+        
         ai_summary = None
+
         try:
             gemini_response = client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model="gemini-2.5-flash",
                 contents=prompt,
             )
             if hasattr(gemini_response, "text"):
