@@ -10,7 +10,8 @@ import {
   Star,
   Sparkles,
   Heart,
-  Brain
+  Brain,
+  ArrowLeft
 } from "lucide-react";
 
 import {
@@ -88,35 +89,55 @@ useEffect(() => {
       fetchHospitals(userLocation);
     }
   }, [userLocation]);
+  
+const enableLocation = () => {
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported by your browser.");
+    return;
+  }
 
-  const enableLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported by your browser.");
-      return;
-    }
-    setLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = { 
-          latitude: pos.coords.latitude, 
-          longitude: pos.coords.longitude 
-        };
-        setUserLocation(coords);
-        setLocationEnabled(true);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Location error:", err);
-        setLoading(false);
-        alert("Unable to get location. Please allow access or try again.");
+  setLoading(true);
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const coords = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      };
+      console.log("✅ Location obtained:", coords);
+      setUserLocation(coords);
+      setLocationEnabled(true);
+      setLoading(false);
+    },
+    (err) => {
+      console.error("❌ Geolocation error:", err.code, err.message);
+      setLoading(false);
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          alert("Location access denied. Enable it in your browser settings and retry.");
+          break;
+        case err.POSITION_UNAVAILABLE:
+          alert("Location unavailable. Check your network or GPS.");
+          break;
+        case err.TIMEOUT:
+          alert("Location request timed out. Try again.");
+          break;
+        default:
+          alert("Unexpected error getting location. Try again later.");
       }
-    );
-  };
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    }
+  );
+};
 
   const fetchHospitals = async (coords) => {
     try {
       console.log("Fetching hospitals with coordinates:", coords);
-      const response = await fetch("http://localhost:5000/api/emergency-alert", {
+      const response = await fetch("http://localhost:5001/api/emergency-alert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -611,25 +632,29 @@ END:VCALENDAR`.trim();
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {currentStep === 1 && <BookingModeSelector />}
-        
-        {currentStep === 2 && bookingMode === "manual" && <HospitalSelection />}
-        
-        {currentStep === 2 && bookingMode === "auto" && (
-          loading ? <AutoBookingProgress /> : null
-        )}
-        
-        {currentStep === 3 && bookingMode === "manual" && <TimeSlotSelection />}
-        
-        {currentStep === 4 && bookingMode === "manual" && <AppointmentConfirmation />}
-        
-        {currentStep === 5 && <BookingComplete />}
-      </div>
+return (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* ✅ Back Button — aligned within layout */}
+      <button
+        onClick={onBackToDashboard}
+        className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors mb-8"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span className="font-medium">Back to Dashboard</span>
+      </button>
+
+      {/* Page content */}
+      {currentStep === 1 && <BookingModeSelector />}
+      {currentStep === 2 && bookingMode === "manual" && <HospitalSelection />}
+      {currentStep === 2 && bookingMode === "auto" && (loading ? <AutoBookingProgress /> : null)}
+      {currentStep === 3 && bookingMode === "manual" && <TimeSlotSelection />}
+      {currentStep === 4 && bookingMode === "manual" && <AppointmentConfirmation />}
+      {currentStep === 5 && <BookingComplete />}
     </div>
-  );
-};
+  </div>
+);
+}; // close function component
+
 
 export default AppointmentScheduler;
