@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Activity,
   Mic,
@@ -83,6 +83,7 @@ const analyzeSymptoms = async () => {
         if (user?.id) {
           const ref = collection(db, "users", String(user.id), "symptom_records");
           const docRef = await addDoc(ref, {
+            symptoms_input: data.symptoms_input,
             detected_symptoms: data.detected_symptoms || [],
             risk_level: data.risk_level || "UNKNOWN",
             severity_score: data.severity_score || 0,

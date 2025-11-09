@@ -1,13 +1,10 @@
-// src/components/EmergencySupport/EmergencySupport.jsx
-import React, { useState, useEffect } from 'react';
-import { Phone, MapPin, AlertCircle, Hospital, Navigation } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Phone, MapPin, AlertCircle, Hospital, Navigation, ArrowLeft } from 'lucide-react';
 import '../../App.css';
 
-export default function EmergencySupport() {
-  const [symptoms, setSymptoms] = useState('');
+const EmergencySupport = ({ onBackToDashboard }) => {
   const [userLocation, setUserLocation] = useState(null);
   const [hospitals, setHospitals] = useState([]);
-  const [emergencyData, setEmergencyData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,42 +33,6 @@ export default function EmergencySupport() {
     }
   };
 
-  const checkSymptoms = async () => {
-    if (!symptoms.trim()) {
-      setError('Please enter symptoms');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('http://localhost:5000/api/emergency-alert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symptoms,
-          latitude: userLocation?.latitude,
-          longitude: userLocation?.longitude
-        })
-      });
-
-      const data = await response.json();
-      setEmergencyData(data);
-
-      if (data.hospitals?.length > 0) {
-        setHospitals(data.hospitals);
-        setError('');
-      } else {
-        setError('No hospitals found nearby. Try enabling location or call emergency services at 108.');
-      }
-    } catch {
-      setError('Error connecting to server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getNearbyHospitals = async () => {
     if (!userLocation) {
       setError('Please enable location first');
@@ -82,7 +43,7 @@ export default function EmergencySupport() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/nearby-hospitals', {
+      const response = await fetch('http://localhost:5000/api/emergency-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,8 +100,17 @@ export default function EmergencySupport() {
   }, []);
 
   return (
+
     <div className="app-container">
       <div className="main-content">
+        <button
+          onClick={onBackToDashboard}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
+
         <div className="header-card">
           <div className="header-title">
             <AlertCircle className="icon-red icon-lg" />
@@ -169,35 +139,6 @@ export default function EmergencySupport() {
             </button>
           </div>
         </div>
-
-        <div className="section-card">
-          <h2 className="section-title">
-            <AlertCircle className="icon-red icon-md" />
-            Check Your Symptoms
-          </h2>
-          <textarea
-            value={symptoms}
-            onChange={(e) => setSymptoms(e.target.value)}
-            placeholder="Describe your symptoms (e.g., chest pain, difficulty breathing, severe bleeding...)"
-            className="symptom-textarea"
-            rows="4"
-          />
-          <button
-            onClick={checkSymptoms}
-            disabled={loading || !symptoms.trim()}
-            className="btn btn-danger btn-full"
-          >
-            {loading ? 'Checking...' : 'Check Symptoms & Get Emergency Help'}
-          </button>
-        </div>
-
-        {emergencyData?.is_emergency && (
-          <div className="emergency-alert">
-            <h2>⚠️ EMERGENCY DETECTED!</h2>
-            <p>{emergencyData.message}</p>
-            <p className="bold-text">Call emergency services immediately: 108</p>
-          </div>
-        )}
 
         <div className="section-card">
           <h2 className="section-title">
@@ -296,3 +237,5 @@ export default function EmergencySupport() {
     </div>
   );
 }
+
+export default EmergencySupport;

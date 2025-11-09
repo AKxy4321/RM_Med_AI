@@ -53,12 +53,10 @@ useEffect(() => {
 
         if (detected.length > 0) {
           setHealthInput(`${detected.join(", ")}`);
-        } else if (latest.ai_summary) {
-          setHealthInput(latest.ai_summary);
         }
-      } else if (userData?.symptoms?.length > 0) {
-        const text = userData.symptoms.join(", ");
-        setHealthInput(`${text}`);
+        else {
+          setHealthInput(latest.symptoms_input);
+        }
       }
     } catch (err) {
       console.error("Failed to load latest symptoms from Firebase:", err);

@@ -292,6 +292,11 @@ def analyze_symptoms():
             return jsonify({'error': 'Invalid input. Missing "symptoms_input".'}), 400
 
         symptoms_input = data.get('symptoms_input', '')
+        symptoms_input = re.sub(
+            r'\b(i have|i am|im|my|i feel|i got|i suffer from|having|got|is|was|the|a|an)\b',
+            '',
+            re.sub(r'[^a-z0-9 ,.-]', '', re.sub(r'\s+', ' ', str(symptoms_input).strip().lower()))
+        ).strip()
         duration_days = int(data.get('duration_days', 0))
         age = int(data.get('age', 1)) if data.get('age') else None
 
@@ -383,6 +388,7 @@ def analyze_symptoms():
         result["risk_score"] = result["severity_score"]
 
         response = {
+            "symptoms_input": symptoms_input,
             "detected_symptoms": result.get("detected_symptoms", []),
             "severity_score": result.get("severity_score", 0),
             "risk_level": result.get("risk_level", "UNKNOWN"),
