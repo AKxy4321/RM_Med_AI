@@ -46,7 +46,7 @@ export default function EmergencySupport() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5001/api/emergency-alert', {
+      const response = await fetch('http://localhost:5000/api/emergency-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,7 +82,7 @@ export default function EmergencySupport() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5001/api/nearby-hospitals', {
+      const response = await fetch('http://localhost:5000/api/nearby-hospitals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -103,7 +103,7 @@ export default function EmergencySupport() {
         setError(data.message || 'No hospitals found nearby. Try Google Maps or call 108.');
       }
     } catch {
-      setError('Error connecting to server. Ensure backend is running on port 5001.');
+      setError('Error connecting to server. Ensure backend is running on port 5000.');
     } finally {
       setLoading(false);
     }

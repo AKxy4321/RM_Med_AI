@@ -1,16 +1,9 @@
-import os
 import re
 import json
-from google import genai
-from dotenv import load_dotenv
+import math
+from rapidfuzz import fuzz
 from datetime import datetime
 from typing import List, Dict
-from rapidfuzz import fuzz
-import math
-
-load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 class SymptomAnalyzer:
     """

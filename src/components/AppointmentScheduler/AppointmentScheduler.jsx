@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import {
   Clock,
@@ -137,7 +137,7 @@ const enableLocation = () => {
   const fetchHospitals = async (coords) => {
     try {
       console.log("Fetching hospitals with coordinates:", coords);
-      const response = await fetch("http://localhost:5001/api/emergency-alert", {
+      const response = await fetch("http://localhost:5000/api/emergency-alert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,13 +1,16 @@
-from google.genai import Client
-from dotenv import load_dotenv
-import os, json, re, math, requests
-from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS
 from io import BytesIO
+from flask_cors import CORS
+from dotenv import load_dotenv
+from google.genai import Client
+import os, json, re, math, requests
+from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
+from flask import Flask, jsonify, request, send_file
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.units import inch
+
+
+from symptom_analyser import SymptomAnalyzer
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -18,6 +21,7 @@ CORS(app)
 if not GEMINI_API_KEY:
     raise RuntimeError("❌ Missing GEMINI_API_KEY environment variable.")
 
+analyzer = SymptomAnalyzer()
 client = Client(api_key=GEMINI_API_KEY)
 print("✅ Gemini client initialized successfully.")
 
@@ -278,5 +282,118 @@ def download_recommendations():
     response.headers.add("Access-Control-Expose-Headers", "Content-Disposition")
     return response
 
+
+# === Gemini AI summary ===
+@app.route('/api/symptom-analysis', methods=['POST'])
+def analyze_symptoms():
+    try:
+        data = request.get_json()
+        if not data or 'symptoms_input' not in data:
+            return jsonify({'error': 'Invalid input. Missing "symptoms_input".'}), 400
+
+        symptoms_input = data.get('symptoms_input', '')
+        duration_days = int(data.get('duration_days', 0))
+        age = int(data.get('age', 1)) if data.get('age') else None
+
+        result = analyzer.analyze(symptoms_input, age, duration_days)
+
+        result.setdefault("severity_score", 0)
+        result.setdefault("severity_category", "UNKNOWN")
+        result.setdefault("detected_symptoms", [])
+
+        prompt = f"""
+            You are a medically trained AI assistant with advanced reasoning and communication skills.
+            Read the JSON symptom analysis and provide a short, plain-English summary that sounds natural and human.
+
+            PURPOSE:
+            Explain what the symptoms might mean, how serious they could be, and what the user should do next.
+            The tone should be calm, clear, and slightly empathetic — like a doctor explaining something simply to a patient.
+
+            IMPORTANT:
+            The JSON data below contains a machine-generated severity analysis. 
+            Use it as guidance, but do not assume it is fully accurate. 
+            Rely on your own medical reasoning and judgment to interpret the case fairly.
+
+            ADDITIONAL CONTEXT:
+            - Patient age: {age if age is not None else "Not provided"}
+            - Symptom duration: {duration_days} days
+            Use this context to guide your reasoning. For example, longer duration or older age may increase medical concern.
+
+            RULES:
+            1. Do not use bullet points, emojis, Markdown, or headings.
+            2. Write in short paragraphs of natural, flowing text.
+            3. Mention the key symptoms, what they could indicate, and how urgent they might be.
+            4. Give specific, realistic advice (for example: "See a doctor soon," or "Call emergency services if pain worsens").
+            5. Keep the summary under 180 words.
+            6. At the end of your response, include exactly two lines in this format:
+            Final severity score: [X/10]
+            Final risk assessment: [LOW / MODERATE / HIGH]
+            7. After that, add this sentence:
+            This summary is informational and not a substitute for professional medical evaluation.
+
+            Human input:
+            {symptoms_input}
+
+            JSON input:
+            {analyzer.feed_to_gemini(result, symptoms_input)}
+            """
+        
+        ai_summary = None
+
+        try:
+            gemini_response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            if hasattr(gemini_response, "text"):
+                ai_summary = gemini_response.text.strip()
+        except Exception as e:
+            ai_summary = f"(Gemini unavailable: {e})"
+
+        result["ai_summary"] = ai_summary or "(No AI summary returned.)"
+
+        updated_risk = None
+        updated_score = None
+
+        if ai_summary:
+            score_match = re.search(r"final severity score:\s*([0-9]+(?:\.[0-9]+)?)/?10", ai_summary.lower())
+            if score_match:
+                updated_score = float(score_match.group(1))
+                if updated_score > 10:
+                    updated_score = 10.0
+                if updated_score < 0:
+                    updated_score = 0.0
+
+            risk_match = re.search(r"final risk assessment:\s*(low|moderate|medium|high)", ai_summary.lower())
+            if risk_match:
+                word = risk_match.group(1)
+                if word in ["moderate", "medium"]:
+                    updated_risk = "MODERATE"
+                elif word == "high":
+                    updated_risk = "HIGH"
+                elif word == "low":
+                    updated_risk = "LOW"
+
+        if updated_score is not None:
+            result["severity_score"] = round(updated_score, 1)
+
+        if updated_risk:
+            result["risk_level"] = updated_risk
+
+        result["risk_score"] = result["severity_score"]
+
+        response = {
+            "detected_symptoms": result.get("detected_symptoms", []),
+            "severity_score": result.get("severity_score", 0),
+            "risk_level": result.get("risk_level", "UNKNOWN"),
+            "ai_summary": ai_summary,
+            "disclaimer": "This summary is informational and not a substitute for professional medical evaluation."
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 if __name__ == "__main__":
-    app.run(port=5001)
+    app.run(host='0.0.0.0', port=5000)
