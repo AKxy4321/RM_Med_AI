@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Heart,
   Activity,
@@ -16,8 +16,6 @@ import { db } from "../../firebase";
 import {
   collection,
   getDocs,
-  addDoc,
-  serverTimestamp,
   orderBy,
   query,
   limit
@@ -112,8 +110,8 @@ useEffect(() => {
     };
   };
 
-  // ---- Fetch lifestyle recommendations from backend ----
-  const fetchRecommendations = async (healthCondition) => {
+
+const fetchRecommendations = async (healthCondition) => {
     try {
       setLoading(true);
       setError(null);
@@ -134,17 +132,6 @@ useEffect(() => {
 
       setRecommendations(normalizeFrontendRecommendations(data.recommendations));
       setSubmitted(true);
-
-      // ---- Save the new symptom record to Firebase ----
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (user?.id) {
-        const ref = collection(db, "users", String(user.id), "symptom_records");
-        await addDoc(ref, {
-          detected_symptoms: healthCondition.split(/[,.;]+/).map((s) => s.trim()).filter(Boolean),
-          ai_summary: healthCondition,
-          created_at: serverTimestamp(),
-        });
-      }
     } catch (err) {
       console.error("Error fetching recommendations:", err);
       setError("Unable to load recommendations. Please try again later.");

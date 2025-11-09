@@ -1,5 +1,7 @@
 Flask
-python-dotenv
-google-genai
 reportlab
 rapidfuzz
+flask-cors
+google-genai
+python-dotenv
+
