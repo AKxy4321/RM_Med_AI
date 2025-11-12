@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import Login from './components/Auth/Login';
 import Dashboard from './components/Dashboard/Dashboard';
 import SymptomAnalysis from './components/SymptomAnalysis/SymptomAnalysis';
@@ -9,7 +10,6 @@ import HealthRecords from './components/HealthRecords/HealthRecords';
 import { filterHealthRecords } from "./utils/filterHealthRecords";
 
 import './index.css';
-import { useState } from 'react';
 
 const ProtectedRoute = ({ children }) => {
   const user = localStorage.getItem('user');
@@ -18,16 +18,15 @@ const ProtectedRoute = ({ children }) => {
 
 function AppContent() {
   const [symptomAnalysisResult, setSymptomAnalysisResult] = useState(null);
-  const [filteredResults, setFilteredResults] = useState([]);
+  const [filteredResults, setFilteredResults] = useState([]); // live search results
   const navigate = useNavigate();
 
-  // 🔍 Unified search handler
+  // 🔍 Global search handler (filters only, no navigation)
   const handleGlobalSearch = (term) => {
     try {
       const storedRecords = JSON.parse(localStorage.getItem("healthRecords")) || [];
       const results = filterHealthRecords(storedRecords, term);
       setFilteredResults(results);
-      navigate("/health-records");
     } catch (err) {
       console.error("Error during global search:", err);
     }
@@ -38,13 +37,14 @@ function AppContent() {
       {/* 🔐 Login */}
       <Route path="/login" element={<Login />} />
 
-      {/* 🏠 Dashboard */}
+      {/* 🏠 Dashboard with live search */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
             <Dashboard
               onSearch={handleGlobalSearch}
+              searchResults={filteredResults} // pass live results
               onNavigateToSymptomAnalysis={() => navigate('/symptom-analysis')}
               onNavigateToAppointment={() => {
                 setSymptomAnalysisResult(null);
@@ -113,7 +113,7 @@ function AppContent() {
         }
       />
 
-      {/* 📋 Health Records (updated to use filtered data) */}
+      {/* 📋 Health Records (independent page, still supports prefiltered data) */}
       <Route
         path="/health-records"
         element={
