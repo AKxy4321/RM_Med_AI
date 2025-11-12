@@ -44,12 +44,16 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
-def get_hospitals_overpass(lat, lng, radius_km=10):
+def get_hospitals_overpass(lat, lng, radius_km=5):
     mirrors = [
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
         "https://overpass.openstreetmap.ru/api/interpreter",
         "https://overpass.nchc.org.tw/api/interpreter",
+        "https://overpass.openstreetmap.fr/api/interpreter",
+        "https://overpass.osm.ch/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.openstreetmap.ie/api/interpreter",
     ]
 
     query = f"""
@@ -95,7 +99,6 @@ def get_hospitals_overpass(lat, lng, radius_km=10):
 
             if hospitals:
                 hospitals.sort(key=lambda x: x["distance"])
-                print(f"✅ Found {len(hospitals)} hospitals from {url}")
                 return hospitals[:15]
 
         except Exception as e:
@@ -105,35 +108,31 @@ def get_hospitals_overpass(lat, lng, radius_km=10):
     print("❌ All Overpass mirrors failed. Returning empty list.")
     return []
 
-@app.route('/api/emergency-alert', methods=['POST'])
-def emergency_alert():
-    data = request.json or {}
-    symptoms = (data.get('symptoms') or "").lower()
-    user_lat, user_lng = data.get('latitude'), data.get('longitude')
-
-    print(f"📩 Incoming /api/emergency-alert → lat={user_lat}, lng={user_lng}, symptoms='{symptoms}'")
+@app.route('/api/nearby-hospitals', methods=['POST'])
+def nearby_hospitals():
+    data = request.json
+    user_lat = data.get('latitude')
+    user_lng = data.get('longitude')
+    max_distance = data.get('max_distance', 10)  # Default 10km
 
     if not user_lat or not user_lng:
-        return jsonify({"error": "Missing latitude or longitude"}), 400
+        return jsonify({
+            'error': 'Location coordinates are required',
+            'hospitals': []
+        }), 400
 
-    is_critical = any(symptom in symptoms for symptom in CRITICAL_SYMPTOMS)
-    hospitals = get_hospitals_overpass(user_lat, user_lng, 5)
-
-    if not hospitals:
-        print("⚠️ No hospitals from Overpass. Returning fallback list.")
-        hospitals = [
-            {"id": 1, "name": "City Care Hospital", "lat": user_lat, "lng": user_lng, "distance": 1.5},
-            {"id": 2, "name": "Metro Health Center", "lat": user_lat, "lng": user_lng, "distance": 2.1},
-            {"id": 3, "name": "LifeLine Medical Institute", "lat": user_lat, "lng": user_lng, "distance": 3.8},
-        ]
-
-    return jsonify({
-        'is_emergency': bool(is_critical),
-        'message': 'CRITICAL SYMPTOMS DETECTED! Call emergency services immediately!' if is_critical
-                   else 'Symptoms do not appear critical, but please consult a doctor.',
-        'emergency_number': '108',
-        'hospitals': hospitals[:5]
-    })
+    try:
+        hospitals = get_hospitals_overpass(user_lat, user_lng, max_distance)
+        return jsonify({
+            'hospitals': hospitals[:20]  # Return up to 10 hospitals
+        })
+    
+    except Exception as e:
+        print(f"Error fetching hospitals: {e}")
+        return jsonify({
+            'error': 'Failed to fetch hospitals',
+            'hospitals': []
+        }), 500
 
 def build_prompt(health_condition):
     return f"""
@@ -283,7 +282,6 @@ def download_recommendations():
     return response
 
 
-# === Gemini AI summary ===
 @app.route('/api/symptom-analysis', methods=['POST'])
 def analyze_symptoms():
     try:

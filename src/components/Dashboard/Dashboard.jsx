@@ -14,6 +14,7 @@ const Dashboard = ({
   onNavigateToAppointment,
   onNavigateToLifestyleRecs,
   onNavigateToEmergencySupport,
+  onNavigateToHealthRecords
 }) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
@@ -161,6 +162,7 @@ const Dashboard = ({
               description="Access your complete medical history and test results securely."
               action="View Records"
               gradient="bg-gradient-to-r from-purple-500 to-indigo-500"
+              onClick={onNavigateToHealthRecords}
             />
           </div>
         </div>

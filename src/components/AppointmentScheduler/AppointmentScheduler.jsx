@@ -23,6 +23,22 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
+const saveToHealthRecords = (appointment, healthInput, userLocation) => {
+  try {
+    const existing = JSON.parse(localStorage.getItem("healthRecords")) || [];
+    const enrichedRecord = {
+      ...appointment,
+      status: "upcoming",
+      symptoms: healthInput || "",
+      location: userLocation || null,
+    };
+    const updated = [...existing, enrichedRecord];
+    localStorage.setItem("healthRecords", JSON.stringify(updated));
+    console.log("✅ Saved appointment to healthRecords:", enrichedRecord);
+  } catch (err) {
+    console.error("❌ Failed to save health record:", err);
+  }
+};
 
 const AppointmentScheduler = ({
   onBackToDashboard,
@@ -301,6 +317,7 @@ const enableLocation = () => {
     setAppointmentDetails(appointment);
     setSelectedHospital(nearestHospital);
     setSelectedSlot(earliestSlot);
+    saveToHealthRecords(appointment, healthInput, userLocation);
     
     setAutoBookingProgress((p) => [...p, "Appointment confirmed!"]);
     await new Promise((r) => setTimeout(r, 1000));
@@ -497,44 +514,55 @@ const enableLocation = () => {
     </div>
   );
 
-  const AppointmentConfirmation = () => (
-    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Confirm Appointment Details</h2>
-      <div className="space-y-3 text-gray-700">
-        <p><strong>Hospital:</strong> {selectedHospital?.name}</p>
-        <p><strong>Date & Time:</strong> {selectedSlot?.date} at {selectedSlot?.time}</p>
-        <p><strong>Specialization:</strong> {selectedHospital?.specialization}</p>
-        <p><strong>Address:</strong> {selectedHospital?.address}</p>
-        <p><strong>Distance:</strong> {selectedHospital?.distance} km away</p>
-      </div>
-      <div className="mt-6 flex justify-center gap-4">
-        <button
-          onClick={() => setCurrentStep(3)}
-          className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
-        >
-          Back
-        </button>
-        <button
-          onClick={async () => {
-            setLoading(true);
-            await new Promise((r) => setTimeout(r, 1500));
-            setAppointmentDetails({
-              id: `APT-${Date.now()}`,
-              hospital: selectedHospital,
-              slot: selectedSlot,
-              confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-              bookedAt: new Date().toISOString(),
-            });
-            setLoading(false);
-            setCurrentStep(5);
-          }}
-          className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-        >
-          Confirm Appointment
-        </button>
-      </div>
+const AppointmentConfirmation = () => (
+  <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-6">
+    <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+      Confirm Appointment Details
+    </h2>
+
+    <div className="space-y-3 text-gray-700">
+      <p><strong>Hospital:</strong> {selectedHospital?.name}</p>
+      <p><strong>Date & Time:</strong> {selectedSlot?.date} at {selectedSlot?.time}</p>
+      <p><strong>Specialization:</strong> {selectedHospital?.specialization}</p>
+      <p><strong>Address:</strong> {selectedHospital?.address}</p>
+      <p><strong>Distance:</strong> {selectedHospital?.distance} km away</p>
     </div>
-  );
+
+    <div className="mt-6 flex justify-center gap-4">
+      <button
+        onClick={() => setCurrentStep(3)}
+        className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+      >
+        Back
+      </button>
+
+      <button
+        onClick={async () => {
+          setLoading(true);
+          await new Promise((r) => setTimeout(r, 1500));
+
+          const appointment = {
+            id: `APT-${Date.now()}`,
+            hospital: selectedHospital,
+            slot: selectedSlot,
+            confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+            bookedAt: new Date().toISOString(),
+          };
+
+          setAppointmentDetails(appointment);
+          saveToHealthRecords(appointment, healthInput, userLocation);
+
+          setLoading(false);
+          setCurrentStep(5);
+        }}
+        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+      >
+        {loading ? "Confirming..." : "Confirm Appointment"}
+      </button>
+    </div>
+  </div>
+);
+
 
   const BookingComplete = () => (
     <div className="max-w-2xl mx-auto text-center">

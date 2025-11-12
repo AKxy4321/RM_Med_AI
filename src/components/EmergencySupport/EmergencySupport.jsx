@@ -43,7 +43,7 @@ const EmergencySupport = ({ onBackToDashboard }) => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/emergency-alert', {
+      const response = await fetch('http://localhost:5000/api/nearby-hospitals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

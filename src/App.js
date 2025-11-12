@@ -5,6 +5,8 @@ import SymptomAnalysis from './components/SymptomAnalysis/SymptomAnalysis';
 import AppointmentScheduler from './components/AppointmentScheduler/AppointmentScheduler';
 import LifestyleRecommendations from './components/LifestyleRecommendations/LifeStyleRecommendations';
 import EmergencySupport from './components/EmergencySupport/EmergencySupport';
+import HealthRecords from './components/HealthRecords/HealthRecords';
+
 import './index.css';
 import { useState } from 'react';
 
@@ -36,6 +38,7 @@ function AppContent() {
               }}
               onNavigateToLifestyleRecs={() => navigate('/lifestyle-recommendations')}
               onNavigateToEmergencySupport={() => navigate('/emergency-support')}
+              onNavigateToHealthRecords={() => navigate('/health-records')}
             />
           </ProtectedRoute>
         }
@@ -95,6 +98,16 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/health-records"
+        element={
+          <ProtectedRoute>
+            <HealthRecords onBackToDashboard={() => navigate(-1)} />
+          </ProtectedRoute>
+        }
+      />
+
 
       {/* 🌐 Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" />} />
