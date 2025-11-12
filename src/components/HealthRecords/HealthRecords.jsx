@@ -33,7 +33,7 @@ const HealthRecords = ({ onBackToDashboard }) => {
 
   useEffect(() => {
     filterRecords();
-  });
+  }, [records, searchTerm, statusFilter, dateFilter]);
 
   const loadRecords = () => {
     try {

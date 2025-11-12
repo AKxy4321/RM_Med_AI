@@ -24,23 +24,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
-const saveToHealthRecords = (appointment, healthInput, userLocation) => {
-  try {
-    const existing = JSON.parse(localStorage.getItem("healthRecords")) || [];
-    const enrichedRecord = {
-      ...appointment,
-      status: "upcoming",
-      symptoms: healthInput || "",
-      location: userLocation || null,
-    };
-    const updated = [...existing, enrichedRecord];
-    localStorage.setItem("healthRecords", JSON.stringify(updated));
-    console.log("✅ Saved appointment to healthRecords:", enrichedRecord);
-  } catch (err) {
-    console.error("❌ Failed to save health record:", err);
-  }
-};
-
 const AppointmentScheduler = ({
   onBackToDashboard,
   onShowLifestyleRecommendations,
@@ -102,8 +85,16 @@ useEffect(() => {
 }, []);
 
 const fetchHospitals = useCallback(async (coords) => {
+  const MAX_ATTEMPTS = 3;
+  const TIMEOUT_MS = 60000; // 1 minute overall timeout
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     try {
-      console.log("Fetching hospitals with coordinates:", coords);
+      console.log(`Fetching hospitals (attempt ${attempt}) with coordinates:`, coords);
+
       const response = await fetch("http://localhost:5000/api/nearby-hospitals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,15 +103,18 @@ const fetchHospitals = useCallback(async (coords) => {
           latitude: coords.latitude,
           longitude: coords.longitude,
         }),
+        signal: controller.signal,
       });
-      
+
+      clearTimeout(timeout);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log("Hospital API response:", data);
-      
+
       if (data.hospitals && Array.isArray(data.hospitals) && data.hospitals.length > 0) {
         const formattedHospitals = data.hospitals.map((h, i) => ({
           id: i + 1,
@@ -128,7 +122,7 @@ const fetchHospitals = useCallback(async (coords) => {
           address: h.address || "Address unavailable",
           distance: h.distance ? h.distance.toString() : (2 + i * 0.5).toString(),
           specialization: h.specialization || "General Medicine",
-          rating: h.rating || 4.0 + (Math.random() * 0.8),
+          rating: h.rating || 4.0 + Math.random() * 0.8,
           reviewCount: h.reviewCount || Math.floor(Math.random() * 200),
           waitTime: h.waitTime || "20–40 mins",
           availableSlots: h.availableSlots || [
@@ -148,17 +142,61 @@ const fetchHospitals = useCallback(async (coords) => {
             },
           ],
         }));
-        console.log("Formatted hospitals:", formattedHospitals);
+
+        console.log("✅ Hospitals loaded successfully:", formattedHospitals);
         setHospitals(formattedHospitals);
-      } else {
-        throw new Error("No hospitals found from API response.");
+        return;
       }
+
+      throw new Error("No hospitals found in API response.");
+
     } catch (err) {
-      console.error("Hospital fetch error:", err);
-      alert("Failed to load hospitals. Please try again later.");
-      setHospitals([]);
+      clearTimeout(timeout);
+      console.warn(`Attempt ${attempt} failed:`, err.message);
+
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 2000)); // wait 2s before retry
+        continue;
+      }
+
+      console.error("❌ All hospital fetch attempts failed:", err);
+      alert("Failed to load nearby hospitals after multiple attempts. Please try again later.");
+
+      // Fallback list for offline or API failure
+      const fallbackHospitals = [
+        {
+          id: 1,
+          name: "Fallback Hospital",
+          address: "Downtown Area",
+          distance: "2.3",
+          specialization: "General Medicine",
+          rating: 4.3,
+          reviewCount: 120,
+          waitTime: "25–40 mins",
+          availableSlots: [
+            {
+              id: 301,
+              date: new Date().toISOString().split("T")[0],
+              time: "09:30 AM",
+              type: "Standard",
+              duration: "30 min",
+            },
+            {
+              id: 302,
+              date: new Date().toISOString().split("T")[0],
+              time: "02:30 PM",
+              type: "Standard",
+              duration: "30 min",
+            },
+          ],
+        },
+      ];
+
+      setHospitals(fallbackHospitals);
+      return;
     }
-  }, [healthInput]);
+  }
+}, [healthInput]);
 
   useEffect(() => {
     if (userLocation) fetchHospitals(userLocation);
@@ -218,15 +256,31 @@ const enableLocation = () => {
   const handleAutoBooking = async () => {
     setBookingMode("auto");
     setCurrentStep(2);
-    
-    // Ensure we have hospitals data before proceeding
+
+    // if no hospitals yet, fetch first
     if (hospitals.length === 0 && userLocation) {
       setAutoBookingProgress(["Getting your location...", "Fetching nearby hospitals..."]);
       await fetchHospitals(userLocation);
+
+      // wait until hospitals are actually set
+      let attempts = 0;
+      while (hospitals.length === 0 && attempts < 30) {
+        // check every 1s for up to 30s
+        await new Promise((r) => setTimeout(r, 1000));
+        attempts++;
+      }
     }
-    
+
+    if (hospitals.length === 0) {
+      alert("No hospitals could be loaded. Please retry.");
+      setLoading(false);
+      setCurrentStep(1);
+      return;
+    }
+
     await simulateAutoBooking();
   };
+
 
   const simulateAutoBooking = async () => {
     setLoading(true);
@@ -303,17 +357,22 @@ const enableLocation = () => {
   
     setAutoBookingProgress((p) => [...p, `Selected time: ${earliestSlot.time}`]);
     await new Promise((r) => setTimeout(r, 1500));
+
+    setSelectedHospital(nearestHospital);
+    setSelectedSlot(earliestSlot);
   
     const appointment = {
       id: `APT-${Date.now()}`,
       symptoms: healthInput,
-      hospital: selectedHospital,
-      slot: selectedSlot,
+      hospital: nearestHospital,
+      slot: earliestSlot,
       confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
       bookedAt: new Date().toISOString(),
     };
     setAppointmentDetails(appointment);
-    saveToHealthRecords(appointment, healthInput, userLocation);
+
+    const existingRecords = JSON.parse(localStorage.getItem("healthRecords")) || [];
+    localStorage.setItem("healthRecords", JSON.stringify([...existingRecords, appointment]));
     
     setAutoBookingProgress((p) => [...p, "Appointment confirmed!"]);
     await new Promise((r) => setTimeout(r, 1000));
@@ -322,10 +381,23 @@ const enableLocation = () => {
     setCurrentStep(5);
   };
 
-  const handleManualBooking = () => {
+  const handleManualBooking = async () => {
     setBookingMode("manual");
     setCurrentStep(2);
+
+    if (hospitals.length === 0) {
+      try {
+        if (userLocation) {
+          await fetchHospitals(userLocation);
+        } else {
+          console.warn("No location available.");
+        }
+      } catch (err) {
+        console.error("Manual booking hospital fetch failed:", err);
+      }
+    }
   };
+
 
   const AutoBookingProgress = () => (
     <div className="max-w-2xl mx-auto text-center">
@@ -543,7 +615,9 @@ const AppointmentConfirmation = () => (
           };
 
           setAppointmentDetails(appointment);
-          saveToHealthRecords(appointment, healthInput, userLocation);
+
+          const existingRecords = JSON.parse(localStorage.getItem("healthRecords")) || [];
+          localStorage.setItem("healthRecords", JSON.stringify([...existingRecords, appointment]));
 
           setLoading(false);
           setCurrentStep(5);

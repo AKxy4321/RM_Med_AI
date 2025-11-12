@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Login from './components/Auth/Login';
 import Dashboard from './components/Dashboard/Dashboard';
 import SymptomAnalysis from './components/SymptomAnalysis/SymptomAnalysis';
@@ -17,6 +17,11 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function AppContent() {
+  //   useEffect(() => {
+  //   // Clears all persisted data when the app first mounts
+  //   localStorage.clear();
+  // }, []);
+
   const [symptomAnalysisResult, setSymptomAnalysisResult] = useState(null);
   const [filteredResults, setFilteredResults] = useState([]); // live search results
   const navigate = useNavigate();

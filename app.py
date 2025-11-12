@@ -68,7 +68,7 @@ def get_hospitals_overpass(lat, lng, radius_km=5):
     for url in mirrors:
         try:
             print(f"🔍 Trying Overpass endpoint: {url}")
-            response = requests.post(url, data={'data': query}, timeout=25)
+            response = requests.post(url, data={"data": query}, timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -89,7 +89,7 @@ def get_hospitals_overpass(lat, lng, radius_km=5):
                     continue
 
                 distance = calculate_distance(lat, lng, hospital_lat, hospital_lng)
-                
+
                 phone = (
                     tags.get("phone")
                     or tags.get("contact:phone")
