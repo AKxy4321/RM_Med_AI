@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Phone, MapPin, AlertCircle, Hospital, Navigation, ArrowLeft } from 'lucide-react';
-import '../../App.css';
 
 const EmergencySupport = ({ onBackToDashboard }) => {
   const [userLocation, setUserLocation] = useState(null);
@@ -18,7 +17,7 @@ const EmergencySupport = ({ onBackToDashboard }) => {
         (position) => {
           setUserLocation({
             latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            longitude: position.coords.longitude,
           });
           setLocationLoading(false);
         },
@@ -35,10 +34,9 @@ const EmergencySupport = ({ onBackToDashboard }) => {
 
   const getNearbyHospitals = async () => {
     if (!userLocation) {
-      setError('Please enable location first');
+      setError('Please enable location first.');
       return;
     }
-
     setLoading(true);
     setError('');
 
@@ -49,19 +47,16 @@ const EmergencySupport = ({ onBackToDashboard }) => {
         body: JSON.stringify({
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
-          max_distance: 10
-        })
+          max_distance: 10,
+        }),
       });
 
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-
       const data = await response.json();
-
       if (data.hospitals?.length > 0) {
         setHospitals(data.hospitals);
-        setError('');
       } else {
-        setError(data.message || 'No hospitals found nearby. Try Google Maps or call 108.');
+        setError(data.message || 'No hospitals found nearby.');
       }
     } catch {
       setError('Error connecting to server. Ensure backend is running on port 5000.');
@@ -72,37 +67,45 @@ const EmergencySupport = ({ onBackToDashboard }) => {
 
   const copyPhoneNumber = (phoneNumber, hospitalName) => {
     if (!phoneNumber || phoneNumber === 'N/A') {
-      alert(
-        `⚠️ Phone number not available for ${hospitalName}.\n\nPlease use Directions or call emergency services: 108`
-      );
+      alert(`⚠️ Phone number not available for ${hospitalName}. Try Directions or call 108.`);
       return;
     }
-
     navigator.clipboard
       .writeText(phoneNumber)
       .then(() => {
         setCopiedPhone(phoneNumber);
-        alert(`✅ Phone number copied!\n\n${hospitalName}\n📞 ${phoneNumber}`);
+        alert(`✅ Phone number copied!\n${hospitalName}\n📞 ${phoneNumber}`);
         setTimeout(() => setCopiedPhone(''), 3000);
       })
-      .catch(() => {
-        alert(`${hospitalName}\n📞 ${phoneNumber}\n\n(Long-press to copy this number)`);
-      });
+      .catch(() => alert(`${hospitalName}\n📞 ${phoneNumber}`));
   };
 
-  const openInMaps = (lat, lng) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    window.open(url, '_blank');
-  };
+  const openInMaps = (lat, lng) =>
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
 
   useEffect(() => {
     getUserLocation();
   }, []);
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-pink-500 rounded-2xl shadow-lg">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-pink-500 bg-clip-text text-transparent">
+                Emergency Support
+              </h1>
+              <p className="text-gray-600">Quick access to emergency help</p>
+            </div>
+          </div>
+        </div>
 
-    <div className="app-container">
-      <div className="main-content">
+        {/* Back button */}
         <button
           onClick={onBackToDashboard}
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 transition-colors mb-8"
@@ -111,51 +114,46 @@ const EmergencySupport = ({ onBackToDashboard }) => {
           <span>Back to Dashboard</span>
         </button>
 
-        <div className="header-card">
-          <div className="header-title">
-            <AlertCircle className="icon-red icon-lg" />
-            <h1>Emergency Support System</h1>
-          </div>
-          <p className="header-subtitle">Quick access to emergency medical assistance</p>
-        </div>
-
-        <div className="location-card">
-          <div className="location-status">
-            <div className="location-info">
-              <MapPin className="icon-blue icon-sm" />
-              <span>Your Location:</span>
-              {userLocation ? (
-                <span className="status-enabled">✓ Enabled</span>
-              ) : (
-                <span className="status-disabled">Not enabled</span>
-              )}
+        {/* Location Section */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <MapPin className="text-blue-600 w-5 h-5" />
+              <div>
+                <p className="font-medium text-gray-800">Your Location</p>
+                <p className="text-sm text-gray-500">
+                  {userLocation ? '✓ Enabled' : 'Not enabled'}
+                </p>
+              </div>
             </div>
             <button
               onClick={getUserLocation}
               disabled={locationLoading}
-              className="btn btn-primary"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl transition disabled:opacity-50"
             >
-              {locationLoading ? 'Getting Location...' : 'Enable Location'}
+              {locationLoading ? 'Getting...' : 'Enable'}
             </button>
           </div>
         </div>
 
-        <div className="section-card">
-          <h2 className="section-title">
-            <Hospital className="icon-blue icon-md" />
-            Find Nearby Hospitals
-          </h2>
+        {/* Hospital Finder */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Hospital className="text-blue-600 w-6 h-6" />
+            <h2 className="text-xl font-semibold text-gray-900">Find Nearby Hospitals</h2>
+          </div>
           <button
             onClick={getNearbyHospitals}
             disabled={loading || !userLocation}
-            className="btn btn-primary btn-full"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
           >
             {loading ? 'Finding Hospitals...' : 'Show Nearby Hospitals'}
           </button>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="error-message">
+          <div className="p-4 mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl">
             <p>{error}</p>
             {userLocation && (
               <button
@@ -165,56 +163,54 @@ const EmergencySupport = ({ onBackToDashboard }) => {
                     '_blank'
                   )
                 }
-                className="btn btn-primary btn-full"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl mt-3 transition"
               >
-                🔍 Search Hospitals on Google Maps
+                Search on Google Maps
               </button>
             )}
           </div>
         )}
 
+        {/* Hospitals */}
         {hospitals.length > 0 && (
-          <div>
-            <h2 className="hospitals-header">
-              Nearby Hospitals ({hospitals.length})
-            </h2>
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-900">Nearby Hospitals</h2>
             {hospitals.map((hospital) => (
-              <div key={hospital.id} className="hospital-card">
-                <div className="hospital-header">
-                  <div className="hospital-info">
-                    <h3>{hospital.name}</h3>
-                    <p>{hospital.address}</p>
+              <div
+                key={hospital.id}
+                className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{hospital.name}</h3>
+                    <p className="text-gray-600 text-sm">{hospital.address}</p>
                     {hospital.phone && hospital.phone !== 'N/A' ? (
-                      <p className="phone-hint">📞 Click below to copy number</p>
+                      <p className="text-xs text-gray-500 mt-1">📞 Tap to copy</p>
                     ) : (
-                      <p className="no-phone">⚠️ Phone not available</p>
+                      <p className="text-xs text-red-500 mt-1">⚠️ No phone available</p>
                     )}
                   </div>
                   {hospital.distance && (
-                    <div className="distance-badge">{hospital.distance} km</div>
+                    <span className="text-xs bg-blue-100 text-blue-700 font-medium px-2 py-1 rounded-lg">
+                      {hospital.distance} km
+                    </span>
                   )}
                 </div>
 
-                <div className="hospital-actions">
+                <div className="flex mt-4 space-x-3">
                   <button
                     onClick={() => copyPhoneNumber(hospital.phone, hospital.name)}
-                    className="btn-success"
                     disabled={!hospital.phone || hospital.phone === 'N/A'}
+                    className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-xl w-1/2 transition disabled:opacity-50"
                   >
-                    <Phone className="icon-sm" />
-                    {copiedPhone === hospital.phone
-                      ? '✓ Copied!'
-                      : hospital.phone && hospital.phone !== 'N/A'
-                      ? 'Get Phone'
-                      : 'No Phone'}
+                    <Phone className="w-4 h-4 mr-2" />
+                    {copiedPhone === hospital.phone ? '✓ Copied!' : 'Get Phone'}
                   </button>
-
                   <button
                     onClick={() => openInMaps(hospital.lat, hospital.lng)}
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
+                    className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-xl w-1/2 transition"
                   >
-                    <Navigation className="icon-sm" />
+                    <Navigation className="w-4 h-4 mr-2" />
                     Directions
                   </button>
                 </div>
@@ -223,19 +219,20 @@ const EmergencySupport = ({ onBackToDashboard }) => {
           </div>
         )}
 
-        <div className="emergency-services-card">
-          <h3>Emergency Services</h3>
-          <p>For immediate emergency assistance, call:</p>
+        {/* Emergency number */}
+        <div className="bg-gradient-to-r from-red-600 to-pink-500 text-white rounded-2xl p-6 mt-8 text-center shadow-md">
+          <h3 className="text-xl font-semibold mb-2">Emergency Services</h3>
+          <p className="text-sm mb-3">For urgent medical help, call:</p>
           <button
             onClick={() => copyPhoneNumber('108', 'Emergency Ambulance Service')}
-            className="emergency-number-btn"
+            className="bg-white text-red-600 font-bold px-6 py-3 rounded-xl hover:bg-red-50 transition"
           >
-            📞 {copiedPhone === '108' ? '✓ Copied! 108' : '108 (Ambulance)'}
+            {copiedPhone === '108' ? '✓ Copied! 108' : '📞 108 (Ambulance)'}
           </button>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default EmergencySupport;
