@@ -304,16 +304,14 @@ const enableLocation = () => {
     setAutoBookingProgress((p) => [...p, `Selected time: ${earliestSlot.time}`]);
     await new Promise((r) => setTimeout(r, 1500));
   
-    // ✅ Step 3: Create appointment details
     const appointment = {
       id: `APT-${Date.now()}`,
-      hospital: nearestHospital,
-      slot: earliestSlot,
       symptoms: healthInput,
+      hospital: selectedHospital,
+      slot: selectedSlot,
       confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
       bookedAt: new Date().toISOString(),
     };
-    
     setAppointmentDetails(appointment);
     setSelectedHospital(nearestHospital);
     setSelectedSlot(earliestSlot);
@@ -538,14 +536,14 @@ const AppointmentConfirmation = () => (
           setLoading(true);
           await new Promise((r) => setTimeout(r, 1500));
 
-        const appointment = {
-          id: `APT-${Date.now()}`,
-          hospital: nearestHospital,
-          slot: earliestSlot,
-          symptoms: healthInput,
-          confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-          bookedAt: new Date().toISOString(),
-        };
+          const appointment = {
+            id: `APT-${Date.now()}`,
+            symptoms: healthInput,
+            hospital: selectedHospital,
+            slot: selectedSlot,
+            confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+            bookedAt: new Date().toISOString(),
+          };
 
           setAppointmentDetails(appointment);
           saveToHealthRecords(appointment, healthInput, userLocation);
