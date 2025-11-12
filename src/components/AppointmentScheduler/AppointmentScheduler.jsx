@@ -104,7 +104,7 @@ useEffect(() => {
 const fetchHospitals = useCallback(async (coords) => {
     try {
       console.log("Fetching hospitals with coordinates:", coords);
-      const response = await fetch("http://localhost:5000/api/emergency-alert", {
+      const response = await fetch("http://localhost:5000/api/nearby-hospitals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -313,14 +313,11 @@ const enableLocation = () => {
       bookedAt: new Date().toISOString(),
     };
     setAppointmentDetails(appointment);
-    setSelectedHospital(nearestHospital);
-    setSelectedSlot(earliestSlot);
     saveToHealthRecords(appointment, healthInput, userLocation);
     
     setAutoBookingProgress((p) => [...p, "Appointment confirmed!"]);
     await new Promise((r) => setTimeout(r, 1000));
   
-    // ✅ Step 4: Move to completion
     setLoading(false);
     setCurrentStep(5);
   };
