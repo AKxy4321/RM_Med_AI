@@ -108,27 +108,6 @@ def get_hospitals_overpass(lat, lng, radius_km=5):
     print("❌ All Overpass mirrors failed. Returning empty list.")
     return []
 
-@app.route('/api/emergency-alert', methods=['POST'])
-def emergency_alert():
-    data = request.json
-    symptoms = data.get('symptoms', '').lower()
-    user_lat, user_lng = data.get('latitude'), data.get('longitude')
-
-    is_critical = any(symptom in symptoms for symptom in CRITICAL_SYMPTOMS)
-    if not is_critical:
-        return jsonify({
-            'is_emergency': False,
-            'message': 'Symptoms do not appear critical, but please consult a doctor.'
-        })
-
-    hospitals = get_hospitals_overpass(user_lat, user_lng, 5)
-    return jsonify({
-        'is_emergency': True,
-        'message': 'CRITICAL SYMPTOMS DETECTED! Call emergency services immediately!',
-        'emergency_number': '108',
-        'hospitals': hospitals[:5]
-    })
-
 @app.route('/api/nearby-hospitals', methods=['POST'])
 def nearby_hospitals():
     data = request.json
