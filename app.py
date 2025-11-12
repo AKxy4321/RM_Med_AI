@@ -89,12 +89,25 @@ def get_hospitals_overpass(lat, lng, radius_km=5):
                     continue
 
                 distance = calculate_distance(lat, lng, hospital_lat, hospital_lng)
+                
+                phone = (
+                    tags.get("phone")
+                    or tags.get("contact:phone")
+                    or tags.get("mobile")
+                    or tags.get("contact:mobile")
+                    or tags.get("telephone")
+                    or tags.get("contact:telephone")
+                    or tags.get("fax")
+                    or "N/A"
+                )
+
                 hospitals.append({
                     "id": element["id"],
                     "name": name,
                     "lat": hospital_lat,
                     "lng": hospital_lng,
-                    "distance": round(distance, 2)
+                    "distance": round(distance, 2),
+                    "phone": phone.strip() if isinstance(phone, str) else "N/A",
                 })
 
             if hospitals:
