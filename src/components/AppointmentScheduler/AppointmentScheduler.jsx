@@ -309,6 +309,7 @@ const enableLocation = () => {
       id: `APT-${Date.now()}`,
       hospital: nearestHospital,
       slot: earliestSlot,
+      symptoms: healthInput,
       confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
       bookedAt: new Date().toISOString(),
     };
@@ -537,13 +538,14 @@ const AppointmentConfirmation = () => (
           setLoading(true);
           await new Promise((r) => setTimeout(r, 1500));
 
-          const appointment = {
-            id: `APT-${Date.now()}`,
-            hospital: selectedHospital,
-            slot: selectedSlot,
-            confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-            bookedAt: new Date().toISOString(),
-          };
+        const appointment = {
+          id: `APT-${Date.now()}`,
+          hospital: nearestHospital,
+          slot: earliestSlot,
+          symptoms: healthInput,
+          confirmationNumber: `MC${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+          bookedAt: new Date().toISOString(),
+        };
 
           setAppointmentDetails(appointment);
           saveToHealthRecords(appointment, healthInput, userLocation);
