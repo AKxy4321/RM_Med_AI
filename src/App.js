@@ -6,6 +6,7 @@ import AppointmentScheduler from './components/AppointmentScheduler/AppointmentS
 import LifestyleRecommendations from './components/LifestyleRecommendations/LifeStyleRecommendations';
 import EmergencySupport from './components/EmergencySupport/EmergencySupport';
 import HealthRecords from './components/HealthRecords/HealthRecords';
+import { filterHealthRecords } from "./utils/filterHealthRecords";
 
 import './index.css';
 import { useState } from 'react';
@@ -15,10 +16,22 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" />;
 };
 
-// ==== Wrapper inside Router so we can use hooks like useNavigate ====
 function AppContent() {
   const [symptomAnalysisResult, setSymptomAnalysisResult] = useState(null);
+  const [filteredResults, setFilteredResults] = useState([]);
   const navigate = useNavigate();
+
+  // 🔍 Unified search handler
+  const handleGlobalSearch = (term) => {
+    try {
+      const storedRecords = JSON.parse(localStorage.getItem("healthRecords")) || [];
+      const results = filterHealthRecords(storedRecords, term);
+      setFilteredResults(results);
+      navigate("/health-records");
+    } catch (err) {
+      console.error("Error during global search:", err);
+    }
+  };
 
   return (
     <Routes>
@@ -31,6 +44,7 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Dashboard
+              onSearch={handleGlobalSearch}
               onNavigateToSymptomAnalysis={() => navigate('/symptom-analysis')}
               onNavigateToAppointment={() => {
                 setSymptomAnalysisResult(null);
@@ -99,15 +113,18 @@ function AppContent() {
         }
       />
 
+      {/* 📋 Health Records (updated to use filtered data) */}
       <Route
         path="/health-records"
         element={
           <ProtectedRoute>
-            <HealthRecords onBackToDashboard={() => navigate(-1)} />
+            <HealthRecords
+              onBackToDashboard={() => navigate(-1)}
+              prefilteredRecords={filteredResults.length > 0 ? filteredResults : null}
+            />
           </ProtectedRoute>
         }
       />
-
 
       {/* 🌐 Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" />} />
@@ -116,7 +133,6 @@ function AppContent() {
   );
 }
 
-// ==== Main App: only wraps Router ====
 function App() {
   return (
     <Router>

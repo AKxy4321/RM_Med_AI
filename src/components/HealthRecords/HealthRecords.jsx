@@ -16,6 +16,7 @@ import {
   Clock4,
   ArrowLeft
 } from 'lucide-react';
+import { filterHealthRecords } from "../../utils/filterHealthRecords";
 
 const HealthRecords = ({ onBackToDashboard }) => {
   const [records, setRecords] = useState([]);
@@ -44,31 +45,7 @@ const HealthRecords = ({ onBackToDashboard }) => {
   };
 
   const filterRecords = useCallback(() => {
-    let filtered = [...records];
-    if (searchTerm) {
-      filtered = filtered.filter(record =>
-        record.hospital?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.hospital?.specialization?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.confirmationNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    if (statusFilter !== 'all')
-      filtered = filtered.filter(record => record.status === statusFilter);
-
-    if (dateFilter !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      filtered = filtered.filter(record => {
-        const recordDate = new Date(record.slot.date);
-        switch (dateFilter) {
-          case 'today': return recordDate.getTime() === today.getTime();
-          case 'upcoming': return recordDate >= today;
-          case 'past': return recordDate < today;
-          default: return true;
-        }
-      });
-    }
-    filtered.sort((a, b) => new Date(b.slot.date) - new Date(a.slot.date));
+    const filtered = filterHealthRecords(records, searchTerm, statusFilter, dateFilter);
     setFilteredRecords(filtered);
   }, [records, searchTerm, statusFilter, dateFilter]);
 
